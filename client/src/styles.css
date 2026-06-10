@@ -185,3 +185,101 @@ input {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+.reader-page {
+  width: min(100%, 1180px);
+  margin: 0 auto;
+}
+
+.reader-topbar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 16px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+
+.reader-topbar h1 {
+  font-size: clamp(1.5rem, 7vw, 2.5rem);
+}
+
+.mode-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid #cbc6b8;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.mode-toggle button {
+  border: 0;
+  min-height: 38px;
+}
+
+.mode-toggle .active {
+  background: #27615d;
+  color: #ffffff;
+}
+
+.reader-status {
+  color: #4e4b45;
+  font-weight: 700;
+}
+
+.page-reader {
+  min-height: 70vh;
+  display: grid;
+  grid-template-columns: minmax(96px, 128px) minmax(0, 1fr) minmax(96px, 128px);
+  gap: 12px;
+  align-items: center;
+}
+
+.page-reader img {
+  width: 100%;
+  max-height: 78vh;
+  object-fit: contain;
+  background: #ffffff;
+}
+
+.webtoon-reader {
+  width: min(100%, 820px);
+  margin: 0 auto;
+  display: grid;
+  gap: 8px;
+}
+
+.webtoon-reader img {
+  display: block;
+  width: 100%;
+  background: #ffffff;
+}
+
+@media (max-width: 720px) {
+  .reader-topbar,
+  .page-reader {
+    grid-template-columns: 1fr;
+  }
+
+  .page-reader {
+    min-height: auto;
+  }
+
+  .page-reader button {
+    width: 100%;
+  }
+
+  .page-reader button:first-child {
+    order: 2;
+  }
+
+  .page-reader img {
+    order: 1;
+    max-height: 68vh;
+  }
+
+  .page-reader button:last-child {
+    order: 3;
+  }
+}
