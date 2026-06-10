@@ -1,4 +1,5 @@
 import { mkdirSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
@@ -223,4 +224,124 @@ export function saveProgress(chapterId, currentPageIndex, mode) {
   `).run(chapterId, safePageIndex, safeMode, updatedAt);
 
   return getProgress(chapterId);
+}
+
+function normalizeTitle(title) {
+  return String(title || "").trim().replace(/\s+/g, " ");
+}
+
+export function getOrCreateManga(title) {
+  const cleanTitle = normalizeTitle(title);
+  if (!cleanTitle) {
+    throw new Error("Manga title is required");
+  }
+
+  const existing = db.prepare(`
+    SELECT * FROM mangas
+    WHERE lower(title) = lower(?)
+    ORDER BY created_at ASC
+    LIMIT 1
+  `).get(cleanTitle);
+
+  if (existing) {
+    return rowToManga(existing);
+  }
+
+  const id = randomUUID();
+  const createdAt = now();
+
+  db.prepare(`
+    INSERT INTO mangas (id, title, created_at, updated_at)
+    VALUES (?, ?, ?, ?)
+  `).run(id, cleanTitle, createdAt, createdAt);
+
+  return rowToManga({
+    id,
+    title: cleanTitle,
+    created_at: createdAt,
+    updated_at: createdAt
+  });
+}
+
+export function createImportedChapter({
+  mangaId,
+  chapterId,
+  chapterTitle,
+  originalFilename,
+  chapterStoragePath,
+  pages
+}) {
+  const cleanTitle = normalizeTitle(chapterTitle);
+  if (!cleanTitle) {
+    throw new Error("Chapter title is required");
+  }
+
+  if (!pages.length) {
+    throw new Error("Chapter requires at least one page");
+  }
+
+  const createdAt = now();
+
+  try {
+    db.exec("BEGIN");
+
+    db.prepare(`
+      INSERT INTO chapters (
+        id,
+        manga_id,
+        title,
+        original_filename,
+        storage_path,
+        created_at,
+        updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      chapterId,
+      mangaId,
+      cleanTitle,
+      originalFilename,
+      chapterStoragePath,
+      createdAt,
+      createdAt
+    );
+
+    const insertPage = db.prepare(`
+      INSERT INTO pages (
+        id,
+        chapter_id,
+        page_index,
+        filename,
+        storage_path,
+        mime_type,
+        created_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    for (const page of pages) {
+      insertPage.run(
+        randomUUID(),
+        chapterId,
+        page.pageIndex,
+        page.filename,
+        page.storagePath,
+        page.mimeType,
+        createdAt
+      );
+    }
+
+    db.prepare(`
+      UPDATE mangas
+      SET updated_at = ?
+      WHERE id = ?
+    `).run(createdAt, mangaId);
+
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+
+  return getChapter(chapterId);
 }
