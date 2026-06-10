@@ -4,6 +4,7 @@ import path from "node:path";
 import { Router } from "express";
 import multer from "multer";
 import { extractArchive, validateArchiveFilename } from "../archive.js";
+import { config, maxUploadBytes } from "../config.js";
 import { createImportedChapter, getOrCreateManga } from "../db.js";
 import {
   ensureStorageDirs,
@@ -12,8 +13,6 @@ import {
   removeQuietly,
   tempDir
 } from "../storage.js";
-
-const maxUploadBytes = 250 * 1024 * 1024;
 
 await ensureStorageDirs();
 
@@ -34,6 +33,10 @@ const upload = multer({
 });
 
 export const uploadRouter = Router();
+
+export function uploadLimitErrorMessage() {
+  return `File too large. Max allowed size is ${config.maxUploadMb} MB.`;
+}
 
 function cleanTitle(value) {
   return String(value || "").trim().replace(/\s+/g, " ");

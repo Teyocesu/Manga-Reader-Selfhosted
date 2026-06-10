@@ -14,6 +14,23 @@ Lector web self-hosted para manga/manhwa personal, pensado para correr en una Ma
 npm install
 ```
 
+## Configuracion opcional
+
+Crear `.env` desde `.env.example` si queres cambiar limites locales:
+
+```bash
+cp .env.example .env
+```
+
+Valores por defecto:
+
+```text
+MAX_UPLOAD_MB=1024
+MAX_IMAGES_PER_CHAPTER=1000
+```
+
+El limite de upload no es ilimitado: si un archivo supera `MAX_UPLOAD_MB`, la API responde con un error claro.
+
 ## Desarrollo
 
 Levantar backend y frontend juntos:

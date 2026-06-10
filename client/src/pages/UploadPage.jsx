@@ -1,11 +1,49 @@
-import { useState } from "react";
-import { uploadChapter } from "../api.js";
+import { useEffect, useState } from "react";
+import { getAppConfig, uploadChapter } from "../api.js";
 
 export function UploadPage({ onNavigate }) {
   const [mangaTitle, setMangaTitle] = useState("");
   const [chapterTitle, setChapterTitle] = useState("");
   const [archive, setArchive] = useState(null);
+  const [appConfig, setAppConfig] = useState({
+    upload: {
+      maxUploadMb: 1024,
+      supportedFormats: [".zip", ".cbz", ".rar", ".cbr"]
+    }
+  });
   const [status, setStatus] = useState({ loading: false, error: "" });
+
+  useEffect(() => {
+    let alive = true;
+
+    getAppConfig()
+      .then((config) => {
+        if (alive) {
+          setAppConfig(config);
+        }
+      })
+      .catch(() => {
+        if (alive) {
+          setStatus({
+            loading: false,
+            error: "No se pudo conectar con el servidor. Revisá que el backend esté corriendo."
+          });
+        }
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  function formatFileSize(file) {
+    if (!file) {
+      return "";
+    }
+
+    const sizeMb = file.size / (1024 * 1024);
+    return `${file.name} · ${sizeMb >= 1 ? sizeMb.toFixed(1) : "<1"} MB`;
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -54,11 +92,16 @@ export function UploadPage({ onNavigate }) {
             required
           />
         </label>
+        <p className="form-help">
+          Formatos: {appConfig.upload.supportedFormats.join(", ")} · límite actual:{" "}
+          {appConfig.upload.maxUploadMb} MB
+        </p>
+        {archive ? <p className="file-summary">{formatFileSize(archive)}</p> : null}
 
         {status.error ? <p className="error">{status.error}</p> : null}
 
         <button className="primary-button" disabled={status.loading}>
-          {status.loading ? "Subiendo..." : "Subir"}
+          {status.loading ? "Procesando archivo..." : "Subir"}
         </button>
       </form>
     </section>

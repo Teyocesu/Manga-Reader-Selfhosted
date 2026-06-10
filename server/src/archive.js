@@ -4,6 +4,7 @@ import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import { createExtractorFromData } from "node-unrar-js";
 import yauzl from "yauzl";
+import { config, maxUploadBytes } from "./config.js";
 
 const allowedImageTypes = new Map([
   [".jpg", "image/jpeg"],
@@ -13,8 +14,8 @@ const allowedImageTypes = new Map([
   [".gif", "image/gif"]
 ]);
 
-const maxPages = 500;
-const maxUncompressedBytes = 600 * 1024 * 1024;
+const maxPages = config.maxImagesPerChapter;
+const maxUncompressedBytes = maxUploadBytes;
 const collator = new Intl.Collator(undefined, {
   numeric: true,
   sensitivity: "base"

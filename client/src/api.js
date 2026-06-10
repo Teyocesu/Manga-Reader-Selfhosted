@@ -23,6 +23,10 @@ export function getLibrary() {
   return request("/library");
 }
 
+export function getAppConfig() {
+  return request("/config");
+}
+
 export function getManga(mangaId) {
   return request(`/mangas/${mangaId}`);
 }
