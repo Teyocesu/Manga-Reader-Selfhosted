@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import { libraryRouter } from "./routes/library.js";
+import { pagesRouter } from "./routes/pages.js";
 import { progressRouter } from "./routes/progress.js";
 import { uploadRouter } from "./routes/upload.js";
 
@@ -16,6 +17,7 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.use("/api", libraryRouter);
+app.use("/api", pagesRouter);
 app.use("/api", progressRouter);
 app.use("/api", uploadRouter);
 

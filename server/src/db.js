@@ -204,6 +204,27 @@ export function getProgress(chapterId) {
   return rowToProgress(row);
 }
 
+export function getPage(pageId) {
+  const row = db.prepare(`
+    SELECT * FROM pages
+    WHERE id = ?
+  `).get(pageId);
+
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    chapterId: row.chapter_id,
+    pageIndex: row.page_index,
+    filename: row.filename,
+    storagePath: row.storage_path,
+    mimeType: row.mime_type,
+    createdAt: row.created_at
+  };
+}
+
 export function saveProgress(chapterId, currentPageIndex, mode) {
   const chapter = db.prepare("SELECT id FROM chapters WHERE id = ?").get(chapterId);
   if (!chapter) {
