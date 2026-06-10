@@ -22,7 +22,7 @@ app.use("/api", progressRouter);
 app.use("/api", uploadRouter);
 
 app.use((error, _req, res, _next) => {
-  const status = error.name === "MulterError" ? 400 : 500;
+  const status = error.statusCode || (error.name === "MulterError" ? 400 : 500);
   res.status(status).json({
     error: status === 400 ? error.message : "Unexpected server error"
   });

@@ -19,6 +19,12 @@ const collator = new Intl.Collator(undefined, {
   sensitivity: "base"
 });
 
+function userInputError(message) {
+  const error = new Error(message);
+  error.statusCode = 400;
+  return error;
+}
+
 function isSupportedArchive(filename) {
   const ext = path.extname(filename).toLowerCase();
   return ext === ".zip" || ext === ".cbz";
@@ -40,12 +46,12 @@ function assertSafeEntryName(entryName) {
     entryName.startsWith("/") ||
     /^[a-zA-Z]:/.test(entryName)
   ) {
-    throw new Error(`Unsafe archive entry path: ${entryName}`);
+    throw userInputError(`Unsafe archive entry path: ${entryName}`);
   }
 
   const parts = entryName.split("/");
   if (parts.some((part) => part === ".." || /[\x00-\x1f]/.test(part))) {
-    throw new Error(`Unsafe archive entry path: ${entryName}`);
+    throw userInputError(`Unsafe archive entry path: ${entryName}`);
   }
 }
 
@@ -81,7 +87,7 @@ function readEntry(zipfile, entry) {
 
 export function validateArchiveFilename(filename) {
   if (!isSupportedArchive(filename)) {
-    throw new Error("Only .zip and .cbz files are supported");
+    throw userInputError("Only .zip and .cbz files are supported");
   }
 }
 
@@ -89,7 +95,12 @@ export async function extractArchive(filePath, originalFilename, outputDir) {
   validateArchiveFilename(originalFilename);
   await mkdir(outputDir, { recursive: true });
 
-  const zipfile = await openZip(filePath);
+  let zipfile;
+  try {
+    zipfile = await openZip(filePath);
+  } catch {
+    throw userInputError("Archive is corrupt or not a valid zip/cbz file");
+  }
   const discovered = [];
   let totalBytes = 0;
 
@@ -110,16 +121,16 @@ export async function extractArchive(filePath, originalFilename, outputDir) {
           const ext = path.extname(entryName).toLowerCase();
           const mimeType = allowedImageTypes.get(ext);
           if (!mimeType) {
-            throw new Error(`Unsupported file in archive: ${entryName}`);
+            throw userInputError(`Unsupported file in archive: ${entryName}`);
           }
 
           totalBytes += entry.uncompressedSize || 0;
           if (totalBytes > maxUncompressedBytes) {
-            throw new Error("Archive is too large after extraction");
+            throw userInputError("Archive is too large after extraction");
           }
 
           if (discovered.length >= maxPages) {
-            throw new Error(`Archive exceeds ${maxPages} pages`);
+            throw userInputError(`Archive exceeds ${maxPages} pages`);
           }
 
           const tempName = `${String(discovered.length + 1).padStart(4, "0")}${ext}`;
@@ -129,7 +140,7 @@ export async function extractArchive(filePath, originalFilename, outputDir) {
 
           const fileInfo = await stat(tempPath);
           if (fileInfo.size === 0) {
-            throw new Error(`Empty image in archive: ${entryName}`);
+            throw userInputError(`Empty image in archive: ${entryName}`);
           }
 
           discovered.push({
@@ -155,7 +166,7 @@ export async function extractArchive(filePath, originalFilename, outputDir) {
   discovered.sort((a, b) => collator.compare(a.originalPath, b.originalPath));
 
   if (discovered.length === 0) {
-    throw new Error("Archive has no supported images");
+    throw userInputError("Archive has no supported images");
   }
 
   return discovered;
