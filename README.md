@@ -46,7 +46,7 @@ El backend escucha en `0.0.0.0` para que otros dispositivos de la misma red pued
 
 1. Abrir `http://localhost:5173`.
 2. Entrar en `Subir`.
-3. Completar titulo de manga, titulo de capitulo y elegir un archivo `.zip` o `.cbz`.
+3. Completar titulo de manga, titulo de capitulo y elegir un archivo `.zip`, `.cbz`, `.rar` o `.cbr`.
 4. Abrir el manga desde la biblioteca.
 5. Entrar al capitulo.
 6. Leer en modo `Pagina` o `Webtoon`.
@@ -63,13 +63,22 @@ El progreso se guarda automaticamente en SQLite.
 
 ## Alcance del MVP
 
-- Subida de archivos `.zip` y `.cbz` propios.
+- Subida de archivos `.zip`, `.cbz`, `.rar` y `.cbr` propios.
 - Extraccion local de imagenes en `storage/`.
 - Metadata y progreso en SQLite dentro de `data/`.
 - Biblioteca, detalle de manga/capitulo y lector con modo pagina/webtoon.
 - Acceso desde celular en la misma red local.
 
 No incluye scraping, descargas externas, login, Docker, PWA ni deploy externo.
+
+## Formatos soportados
+
+- `.zip` y `.cbz`: lectura con `yauzl`.
+- `.rar` y `.cbr`: lectura con `node-unrar-js`.
+
+Para probar `.rar` o `.cbr`, usa siempre un archivo RAR valido propio o legalmente obtenido.
+
+Para RAR se eligio `node-unrar-js` porque funciona en Node sin instalar binarios externos. Su ultima version publicada no es reciente, pero es mas simple y segura para este MVP que depender de herramientas del sistema o de alternativas mas antiguas como `unrar-js`.
 
 ## API minima
 

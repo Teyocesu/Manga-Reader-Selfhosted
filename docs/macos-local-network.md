@@ -12,6 +12,13 @@ El frontend queda disponible en el puerto `5173` y el backend en el puerto `3001
 
 No cierres la Terminal mientras estes leyendo desde el celular.
 
+Formatos soportados para upload local:
+
+- `.zip`
+- `.cbz`
+- `.rar`
+- `.cbr`
+
 ## 2. Obtener la IP local de la Mac
 
 En macOS, abrir Terminal y ejecutar:

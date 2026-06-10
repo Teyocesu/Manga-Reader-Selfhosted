@@ -51,7 +51,7 @@ export function LibraryPage({ onNavigate }) {
       {state.mangas.length === 0 ? (
         <div className="empty-state">
           <h2>No hay mangas todavia</h2>
-          <p>Subi tu primer `.zip` o `.cbz` para empezar.</p>
+          <p>Subi tu primer `.zip`, `.cbz`, `.rar` o `.cbr` para empezar.</p>
           <button className="primary-button" onClick={() => onNavigate("/upload")}>
             Subir archivo
           </button>

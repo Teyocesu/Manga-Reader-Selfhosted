@@ -46,9 +46,9 @@ export function UploadPage({ onNavigate }) {
         </label>
 
         <label>
-          Archivo `.zip` o `.cbz`
+          Archivo `.zip`, `.cbz`, `.rar` o `.cbr`
           <input
-            accept=".zip,.cbz"
+            accept=".zip,.cbz,.rar,.cbr"
             type="file"
             onChange={(event) => setArchive(event.target.files?.[0] || null)}
             required
