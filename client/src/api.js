@@ -1,0 +1,58 @@
+const apiBase =
+  import.meta.env.VITE_API_BASE_URL ||
+  `${window.location.protocol}//${window.location.hostname}:3001/api`;
+
+async function request(path, options = {}) {
+  const response = await fetch(`${apiBase}${path}`, options);
+  const isJson = response.headers.get("content-type")?.includes("application/json");
+  const body = isJson ? await response.json() : await response.text();
+
+  if (!response.ok) {
+    const message = typeof body === "object" ? body.error : body;
+    throw new Error(message || "Request failed");
+  }
+
+  return body;
+}
+
+export function imageUrl(path) {
+  return `${apiBase}${path.replace(/^\/api/, "")}`;
+}
+
+export function getLibrary() {
+  return request("/library");
+}
+
+export function getManga(mangaId) {
+  return request(`/mangas/${mangaId}`);
+}
+
+export function getChapter(chapterId) {
+  return request(`/chapters/${chapterId}`);
+}
+
+export function getProgress(chapterId) {
+  return request(`/progress/${chapterId}`);
+}
+
+export function saveProgress(chapterId, payload) {
+  return request(`/progress/${chapterId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function uploadChapter({ mangaTitle, chapterTitle, archive }) {
+  const formData = new FormData();
+  formData.append("mangaTitle", mangaTitle);
+  formData.append("chapterTitle", chapterTitle);
+  formData.append("archive", archive);
+
+  return request("/upload", {
+    method: "POST",
+    body: formData
+  });
+}
