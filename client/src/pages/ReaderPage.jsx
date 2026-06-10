@@ -89,11 +89,11 @@ export function ReaderPage({ chapterId, onNavigate }) {
   }, [mode, state.data]);
 
   if (state.loading) {
-    return <p className="muted">Cargando capitulo...</p>;
+    return <p className="status-card">Cargando capitulo...</p>;
   }
 
   if (state.error) {
-    return <p className="error">{state.error}</p>;
+    return <p className="status-card error">{state.error}</p>;
   }
 
   const { manga, chapter, pages } = state.data;
@@ -109,7 +109,7 @@ export function ReaderPage({ chapterId, onNavigate }) {
   }
 
   return (
-    <section className="reader-page">
+    <section className={`reader-page ${mode === "webtoon" ? "webtoon-mode" : "page-mode"}`}>
       <div className="reader-topbar">
         <button className="text-button" onClick={() => onNavigate(`/manga/${manga.id}`)}>
           Volver
@@ -141,11 +141,13 @@ export function ReaderPage({ chapterId, onNavigate }) {
 
       {mode === "page" ? (
         <div className="page-reader">
-          <button onClick={previousPage} disabled={currentPageIndex === 0}>
+          <button className="reader-nav-button" onClick={previousPage} disabled={currentPageIndex === 0}>
             Anterior
           </button>
-          <img src={imageUrl(currentPage.imageUrl)} alt={`Pagina ${currentPageIndex + 1}`} />
-          <button onClick={nextPage} disabled={currentPageIndex >= pageCount - 1}>
+          <div className="page-frame">
+            <img src={imageUrl(currentPage.imageUrl)} alt={`Pagina ${currentPageIndex + 1}`} />
+          </div>
+          <button className="reader-nav-button" onClick={nextPage} disabled={currentPageIndex >= pageCount - 1}>
             Siguiente
           </button>
         </div>

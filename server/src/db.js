@@ -127,7 +127,37 @@ export function listLibrary() {
     ORDER BY mangas.updated_at DESC
   `).all();
 
-  return rows.map(rowToManga);
+  const latestProgress = db.prepare(`
+    SELECT
+      chapters.id,
+      chapters.title,
+      reading_progress.current_page_index,
+      reading_progress.mode,
+      reading_progress.updated_at
+    FROM chapters
+    JOIN reading_progress ON reading_progress.chapter_id = chapters.id
+    WHERE chapters.manga_id = ?
+    ORDER BY reading_progress.updated_at DESC
+    LIMIT 1
+  `);
+
+  return rows.map((row) => {
+    const manga = rowToManga(row);
+    const progress = latestProgress.get(row.id);
+
+    return {
+      ...manga,
+      continueChapter: progress
+        ? {
+            id: progress.id,
+            title: progress.title,
+            currentPageIndex: progress.current_page_index,
+            mode: progress.mode,
+            updatedAt: progress.updated_at
+          }
+        : null
+    };
+  });
 }
 
 export function getManga(mangaId) {

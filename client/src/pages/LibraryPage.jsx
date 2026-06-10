@@ -29,19 +29,23 @@ export function LibraryPage({ onNavigate }) {
   }, []);
 
   if (state.loading) {
-    return <p className="muted">Cargando biblioteca...</p>;
+    return <p className="status-card">Cargando biblioteca...</p>;
   }
 
   if (state.error) {
-    return <p className="error">{state.error}</p>;
+    return <p className="status-card error">{state.error}</p>;
   }
 
   return (
     <section className="page-section">
-      <div className="section-heading">
+      <div className="catalog-hero">
         <div>
           <p className="eyebrow">Biblioteca local</p>
-          <h1>Tu coleccion</h1>
+          <h1>Tu colección manga/manhwa</h1>
+          <p className="hero-copy">
+            Organizá tus archivos propios y retomá la lectura desde cualquier
+            dispositivo en tu Wi-Fi.
+          </p>
         </div>
         <button className="primary-button" onClick={() => onNavigate("/upload")}>
           Subir capitulo
@@ -50,6 +54,7 @@ export function LibraryPage({ onNavigate }) {
 
       {state.mangas.length === 0 ? (
         <div className="empty-state">
+          <div className="empty-cover" aria-hidden="true">MR</div>
           <h2>No hay mangas todavia</h2>
           <p>Subi tu primer `.zip`, `.cbz`, `.rar` o `.cbr` para empezar.</p>
           <button className="primary-button" onClick={() => onNavigate("/upload")}>
@@ -57,18 +62,30 @@ export function LibraryPage({ onNavigate }) {
           </button>
         </div>
       ) : (
-        <div className="item-grid">
+        <div className="manga-grid">
           {state.mangas.map((manga) => (
-            <button
-              className="library-item"
-              key={manga.id}
-              onClick={() => onNavigate(`/manga/${manga.id}`)}
-            >
-              <span>{manga.title}</span>
-              <small>
-                {manga.chapterCount} capitulo{manga.chapterCount === 1 ? "" : "s"}
-              </small>
-            </button>
+            <article className="manga-card" key={manga.id}>
+              <button className="cover-button" onClick={() => onNavigate(`/manga/${manga.id}`)}>
+                <span className="cover-placeholder">{manga.title.slice(0, 2).toUpperCase()}</span>
+              </button>
+              <div className="manga-card-body">
+                <h2>{manga.title}</h2>
+                <p>
+                  {manga.chapterCount} capitulo{manga.chapterCount === 1 ? "" : "s"}
+                </p>
+                <div className="card-actions">
+                  <button onClick={() => onNavigate(`/manga/${manga.id}`)}>Ver</button>
+                  {manga.continueChapter ? (
+                    <button
+                      className="accent-button"
+                      onClick={() => onNavigate(`/chapter/${manga.continueChapter.id}`)}
+                    >
+                      Continuar
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            </article>
           ))}
         </div>
       )}

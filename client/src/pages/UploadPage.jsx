@@ -58,9 +58,15 @@ export function UploadPage({ onNavigate }) {
   }
 
   return (
-    <section className="page-section">
-      <p className="eyebrow">Upload local</p>
-      <h1>Subir capitulo</h1>
+    <section className="page-section upload-layout">
+      <div className="upload-intro">
+        <p className="eyebrow">Upload local</p>
+        <h1>Sumar un capítulo</h1>
+        <p className="hero-copy">
+          Cargá un archivo propio, el servidor lo valida y guarda las páginas
+          en tu storage local.
+        </p>
+      </div>
 
       <form className="upload-form" onSubmit={handleSubmit}>
         <label>
@@ -85,12 +91,16 @@ export function UploadPage({ onNavigate }) {
 
         <label>
           Archivo `.zip`, `.cbz`, `.rar` o `.cbr`
-          <input
-            accept=".zip,.cbz,.rar,.cbr"
-            type="file"
-            onChange={(event) => setArchive(event.target.files?.[0] || null)}
-            required
-          />
+          <span className="file-drop">
+            <strong>Elegir archivo</strong>
+            <small>Formatos locales soportados, sin descargas externas</small>
+            <input
+              accept=".zip,.cbz,.rar,.cbr"
+              type="file"
+              onChange={(event) => setArchive(event.target.files?.[0] || null)}
+              required
+            />
+          </span>
         </label>
         <p className="form-help">
           Formatos: {appConfig.upload.supportedFormats.join(", ")} · límite actual:{" "}

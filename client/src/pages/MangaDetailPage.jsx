@@ -29,11 +29,11 @@ export function MangaDetailPage({ mangaId, onNavigate }) {
   }, [mangaId]);
 
   if (state.loading) {
-    return <p className="muted">Cargando manga...</p>;
+    return <p className="status-card">Cargando manga...</p>;
   }
 
   if (state.error) {
-    return <p className="error">{state.error}</p>;
+    return <p className="status-card error">{state.error}</p>;
   }
 
   return (
@@ -41,21 +41,40 @@ export function MangaDetailPage({ mangaId, onNavigate }) {
       <button className="text-button" onClick={() => onNavigate("/")}>
         Volver
       </button>
-      <p className="eyebrow">Manga</p>
-      <h1>{state.manga.title}</h1>
+      <div className="manga-detail-hero">
+        <div className="detail-cover">
+          {state.manga.title.slice(0, 2).toUpperCase()}
+        </div>
+        <div>
+          <p className="eyebrow">Manga</p>
+          <h1>{state.manga.title}</h1>
+          <p className="hero-copy">
+            {state.manga.chapters.length} capitulo
+            {state.manga.chapters.length === 1 ? "" : "s"} disponible
+            {state.manga.chapters.length === 1 ? "" : "s"}.
+          </p>
+        </div>
+      </div>
 
       <div className="chapter-list">
         {state.manga.chapters.map((chapter) => (
-          <button
-            className="chapter-row"
-            key={chapter.id}
-            onClick={() => onNavigate(`/chapter/${chapter.id}`)}
-          >
-            <span>{chapter.title}</span>
-            <small>
-              {chapter.pageCount} pagina{chapter.pageCount === 1 ? "" : "s"}
-            </small>
-          </button>
+          <article className="chapter-row" key={chapter.id}>
+            <div>
+              <h2>{chapter.title}</h2>
+              <p>
+                {chapter.pageCount} pagina{chapter.pageCount === 1 ? "" : "s"}
+                {chapter.progress
+                  ? ` · progreso en página ${chapter.progress.currentPageIndex + 1}`
+                  : ""}
+              </p>
+            </div>
+            <button
+              className={chapter.progress ? "accent-button" : "primary-button"}
+              onClick={() => onNavigate(`/chapter/${chapter.id}`)}
+            >
+              {chapter.progress ? "Continuar" : "Leer"}
+            </button>
+          </article>
         ))}
       </div>
     </section>

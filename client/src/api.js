@@ -3,7 +3,13 @@ const apiBase =
   `${window.location.protocol}//${window.location.hostname}:3001/api`;
 
 async function request(path, options = {}) {
-  const response = await fetch(`${apiBase}${path}`, options);
+  let response;
+  try {
+    response = await fetch(`${apiBase}${path}`, options);
+  } catch {
+    throw new Error("No se pudo conectar con el servidor. Revisá que el backend esté corriendo.");
+  }
+
   const isJson = response.headers.get("content-type")?.includes("application/json");
   const body = isJson ? await response.json() : await response.text();
 
