@@ -10,6 +10,8 @@ npm run dev
 
 El frontend queda disponible en el puerto `5173` y el backend en el puerto `3001`.
 
+No cierres la Terminal mientras estes leyendo desde el celular.
+
 ## 2. Obtener la IP local de la Mac
 
 En macOS, abrir Terminal y ejecutar:
@@ -40,8 +42,16 @@ Ejemplo:
 http://192.168.1.25:5173
 ```
 
+La app del celular va a llamar automaticamente al backend en:
+
+```text
+http://IP_LOCAL_DE_LA_MAC:3001
+```
+
 ## Problemas comunes
 
 - Confirmar que Mac y celular esten en la misma red Wi-Fi.
 - Revisar que el firewall de macOS permita conexiones entrantes para Node.js.
+- Si el navegador del celular no carga, probar primero desde la Mac con `http://localhost:5173`.
+- Si la biblioteca carga pero las imagenes no, revisar que el backend siga activo en `http://localhost:3001/api/health`.
 - No hace falta internet externo; el acceso es dentro de la red local.

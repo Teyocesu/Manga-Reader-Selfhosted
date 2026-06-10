@@ -40,6 +40,27 @@ Puertos por defecto:
 - Backend: `http://localhost:3001`
 - Health check: `http://localhost:3001/api/health`
 
+El backend escucha en `0.0.0.0` para que otros dispositivos de la misma red puedan conectarse. El frontend de Vite tambien se levanta con `--host 0.0.0.0`.
+
+## Uso basico
+
+1. Abrir `http://localhost:5173`.
+2. Entrar en `Subir`.
+3. Completar titulo de manga, titulo de capitulo y elegir un archivo `.zip` o `.cbz`.
+4. Abrir el manga desde la biblioteca.
+5. Entrar al capitulo.
+6. Leer en modo `Pagina` o `Webtoon`.
+
+El progreso se guarda automaticamente en SQLite.
+
+## Archivos locales
+
+- Base de datos: `data/manga-reader.sqlite`
+- Imagenes extraidas: `storage/library/`
+- Temporales de upload/extraccion: `storage/.tmp/`
+
+`data/` y `storage/` no se versionan, salvo sus `.gitkeep`.
+
 ## Alcance del MVP
 
 - Subida de archivos `.zip` y `.cbz` propios.
@@ -49,6 +70,17 @@ Puertos por defecto:
 - Acceso desde celular en la misma red local.
 
 No incluye scraping, descargas externas, login, Docker, PWA ni deploy externo.
+
+## API minima
+
+- `GET /api/health`
+- `GET /api/library`
+- `GET /api/mangas/:mangaId`
+- `GET /api/chapters/:chapterId`
+- `POST /api/upload`
+- `GET /api/pages/:pageId/image`
+- `GET /api/progress/:chapterId`
+- `PUT /api/progress/:chapterId`
 
 ## GitHub remoto manual
 
