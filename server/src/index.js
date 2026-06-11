@@ -1,5 +1,7 @@
 import express from "express";
 import cors from "cors";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { config } from "./config.js";
 import { libraryRouter } from "./routes/library.js";
 import { pagesRouter } from "./routes/pages.js";
@@ -9,6 +11,9 @@ import { uploadLimitErrorMessage, uploadRouter } from "./routes/upload.js";
 const app = express();
 const port = Number(process.env.PORT || 3001);
 const host = process.env.HOST || "0.0.0.0";
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const rootDir = path.resolve(__dirname, "../..");
+const clientDistDir = path.join(rootDir, "client", "dist");
 
 app.use(cors());
 app.use(express.json());
@@ -31,6 +36,18 @@ app.use("/api", libraryRouter);
 app.use("/api", pagesRouter);
 app.use("/api", progressRouter);
 app.use("/api", uploadRouter);
+
+if (process.env.NODE_ENV === "production") {
+  app.use(express.static(clientDistDir));
+  app.use((req, res, next) => {
+    if (req.method !== "GET" || req.path.startsWith("/api")) {
+      next();
+      return;
+    }
+
+    res.sendFile(path.join(clientDistDir, "index.html"));
+  });
+}
 
 app.use((error, _req, res, _next) => {
   const status = error.statusCode || (error.name === "MulterError" ? 400 : 500);

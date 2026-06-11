@@ -8,9 +8,11 @@
     "server"
   ],
   "scripts": {
+    "build": "npm --workspace client run build",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "dev:client": "npm --workspace client run dev",
-    "dev:server": "npm --workspace server run dev"
+    "dev:server": "npm --workspace server run dev",
+    "start": "NODE_ENV=production npm --workspace server run start"
   },
   "devDependencies": {
     "concurrently": "^10.0.3"
