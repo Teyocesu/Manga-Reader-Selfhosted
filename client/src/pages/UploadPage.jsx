@@ -12,6 +12,19 @@ export function UploadPage({ onNavigate }) {
     }
   });
   const [status, setStatus] = useState({ loading: false, error: "", success: "" });
+  const [importedSubmissionKey, setImportedSubmissionKey] = useState("");
+
+  const fileKey = archive
+    ? `${archive.name}:${archive.size}:${archive.lastModified}`
+    : "";
+  const submissionKey = [
+    mangaTitle.trim().toLowerCase(),
+    chapterTitle.trim().toLowerCase(),
+    fileKey
+  ].join("|");
+  const alreadyImportedFromSelection =
+    Boolean(fileKey) && importedSubmissionKey === submissionKey;
+  const submitDisabled = status.loading || alreadyImportedFromSelection;
 
   useEffect(() => {
     let alive = true;
@@ -48,10 +61,21 @@ export function UploadPage({ onNavigate }) {
 
   async function handleSubmit(event) {
     event.preventDefault();
+
+    if (alreadyImportedFromSelection) {
+      setStatus({
+        loading: false,
+        error: "",
+        success: "Este archivo ya fue importado desde esta selección. Elegí otro archivo o cambiá los datos para volver a subir."
+      });
+      return;
+    }
+
     setStatus({ loading: true, error: "", success: "" });
 
     try {
       const result = await uploadChapter({ mangaTitle, chapterTitle, archive });
+      setImportedSubmissionKey(submissionKey);
       if (result.totalChapters > 1) {
         setStatus({
           loading: false,
@@ -83,7 +107,10 @@ export function UploadPage({ onNavigate }) {
           Manga
           <input
             value={mangaTitle}
-            onChange={(event) => setMangaTitle(event.target.value)}
+            onChange={(event) => {
+              setMangaTitle(event.target.value);
+              setStatus((current) => ({ ...current, success: "" }));
+            }}
             placeholder="Ej: One-shot personal"
             required
           />
@@ -93,7 +120,10 @@ export function UploadPage({ onNavigate }) {
           Capitulo
           <input
             value={chapterTitle}
-            onChange={(event) => setChapterTitle(event.target.value)}
+            onChange={(event) => {
+              setChapterTitle(event.target.value);
+              setStatus((current) => ({ ...current, success: "" }));
+            }}
             placeholder="Ej: Capitulo 1"
             required
           />
@@ -107,7 +137,10 @@ export function UploadPage({ onNavigate }) {
             <input
               accept=".zip,.cbz,.rar,.cbr"
               type="file"
-              onChange={(event) => setArchive(event.target.files?.[0] || null)}
+              onChange={(event) => {
+                setArchive(event.target.files?.[0] || null);
+                setStatus((current) => ({ ...current, success: "" }));
+              }}
               required
             />
           </span>
@@ -120,8 +153,13 @@ export function UploadPage({ onNavigate }) {
 
         {status.error ? <p className="error">{status.error}</p> : null}
         {status.success ? <p className="success">{status.success}</p> : null}
+        {alreadyImportedFromSelection ? (
+          <p className="form-help">
+            Este archivo ya fue importado desde esta selección. Elegí otro archivo o cambiá los datos.
+          </p>
+        ) : null}
 
-        <button className="primary-button" disabled={status.loading}>
+        <button className="primary-button" disabled={submitDisabled}>
           {status.loading ? "Procesando archivo..." : "Subir"}
         </button>
       </form>
