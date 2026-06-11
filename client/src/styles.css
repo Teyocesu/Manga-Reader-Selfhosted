@@ -227,6 +227,13 @@ h2 {
   font-weight: 800;
 }
 
+.success {
+  color: #bbf7d0;
+  border-color: rgba(34, 197, 94, 0.4);
+  background: rgba(20, 83, 45, 0.25);
+  font-weight: 800;
+}
+
 .empty-state {
   text-align: center;
 }

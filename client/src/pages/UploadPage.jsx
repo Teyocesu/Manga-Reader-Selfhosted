@@ -11,7 +11,7 @@ export function UploadPage({ onNavigate }) {
       supportedFormats: [".zip", ".cbz", ".rar", ".cbr"]
     }
   });
-  const [status, setStatus] = useState({ loading: false, error: "" });
+  const [status, setStatus] = useState({ loading: false, error: "", success: "" });
 
   useEffect(() => {
     let alive = true;
@@ -26,7 +26,8 @@ export function UploadPage({ onNavigate }) {
         if (alive) {
           setStatus({
             loading: false,
-            error: "No se pudo conectar con el servidor. Revisá que el backend esté corriendo."
+            error: "No se pudo conectar con el servidor. Revisá que el backend esté corriendo.",
+            success: ""
           });
         }
       });
@@ -47,13 +48,22 @@ export function UploadPage({ onNavigate }) {
 
   async function handleSubmit(event) {
     event.preventDefault();
-    setStatus({ loading: true, error: "" });
+    setStatus({ loading: true, error: "", success: "" });
 
     try {
       const result = await uploadChapter({ mangaTitle, chapterTitle, archive });
+      if (result.totalChapters > 1) {
+        setStatus({
+          loading: false,
+          error: "",
+          success: `Pack importado: ${result.totalChapters} capítulos, ${result.totalPages} páginas.`
+        });
+        return;
+      }
+
       onNavigate(`/manga/${result.manga.id}`);
     } catch (error) {
-      setStatus({ loading: false, error: error.message });
+      setStatus({ loading: false, error: error.message, success: "" });
     }
   }
 
@@ -109,6 +119,7 @@ export function UploadPage({ onNavigate }) {
         {archive ? <p className="file-summary">{formatFileSize(archive)}</p> : null}
 
         {status.error ? <p className="error">{status.error}</p> : null}
+        {status.success ? <p className="success">{status.success}</p> : null}
 
         <button className="primary-button" disabled={status.loading}>
           {status.loading ? "Procesando archivo..." : "Subir"}

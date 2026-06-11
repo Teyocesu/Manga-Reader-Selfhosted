@@ -41,4 +41,18 @@ Para crear un fixture local `.zip` con `.cbz` adentro:
 zip -j /tmp/manga-reader-fixture/nested.zip /tmp/manga-reader-fixture/chapter.cbz
 ```
 
-Si hay varios archives internos, extrae uno y subilo por separado. Si hay imagenes y archives internos mezclados, el upload se rechaza con un error claro.
+## Pack con varios capitulos
+
+Si un archive externo contiene varios archives internos soportados y no contiene imagenes directas, la app lo importa como pack. Cada archive interno queda como un capitulo separado bajo el manga ingresado.
+
+Para crear un fixture local `.zip` con dos `.cbz` adentro:
+
+```bash
+cp /tmp/manga-reader-fixture/chapter.cbz /tmp/manga-reader-fixture/chapter-01.cbz
+cp /tmp/manga-reader-fixture/chapter.cbz /tmp/manga-reader-fixture/chapter-02.cbz
+zip -j /tmp/manga-reader-fixture/pack.zip /tmp/manga-reader-fixture/chapter-01.cbz /tmp/manga-reader-fixture/chapter-02.cbz
+```
+
+Subir `pack.zip`. La respuesta debe indicar 2 capitulos y 6 paginas.
+
+Si hay imagenes y archives internos mezclados, el upload se rechaza con un error claro. Si un archive interno trae otro archive adentro, se rechaza para mantener profundidad maxima 1.

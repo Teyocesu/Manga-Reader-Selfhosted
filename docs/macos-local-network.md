@@ -19,7 +19,7 @@ Formatos soportados para upload local:
 - `.rar`
 - `.cbr`
 
-Los archivos pueden contener imagenes directamente o un unico archive interno soportado, por ejemplo un `.rar` con un `.cbr` adentro.
+Los archivos pueden contener imagenes directamente, un unico archive interno soportado o un pack con varios archives internos. En un pack, cada `.cbz`, `.cbr`, `.zip` o `.rar` interno se importa como un capitulo separado.
 
 ## 2. Obtener la IP local de la Mac
 

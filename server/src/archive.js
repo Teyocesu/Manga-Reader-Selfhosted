@@ -18,8 +18,6 @@ const maxPages = config.maxImagesPerChapter;
 const maxUncompressedBytes = maxUploadBytes;
 const nestedArchiveMessage =
   "This archive contains another comic archive inside. Extract it or upload the inner .cbr/.cbz directly.";
-const multipleNestedArchiveMessage =
-  "Archive contains multiple nested archives. Please extract one and upload it.";
 const collator = new Intl.Collator(undefined, {
   numeric: true,
   sensitivity: "base"
@@ -143,6 +141,7 @@ function classifyEntries(entries) {
   const images = [];
   const nestedArchives = [];
   let totalImageBytes = 0;
+  let totalNestedBytes = 0;
 
   for (const entry of entries) {
     assertSafeEntryName(entry.name);
@@ -174,6 +173,11 @@ function classifyEntries(entries) {
     }
 
     if (isSupportedArchive(entry.name)) {
+      totalNestedBytes += entry.size || 0;
+      if (totalNestedBytes > maxUncompressedBytes) {
+        throw userInputError("Archive is too large after extraction");
+      }
+
       validateNestedArchiveCandidate(entry.name, entry.size || 0);
       nestedArchives.push({
         originalPath: entry.name,
@@ -191,19 +195,23 @@ function classifyEntries(entries) {
   return { images, nestedArchives };
 }
 
-function assertExtractionPlan({ images, nestedArchives }, depth) {
+function assertExtractionPlan({ images, nestedArchives }, depth, options = {}) {
+  const { allowMultiChapterPack = false } = options;
+
   if (images.length > 0 && nestedArchives.length > 0) {
     throw userInputError(
       "Archive contains images and nested archives. Remove the nested archive or upload it directly."
     );
   }
 
-  if (nestedArchives.length > 1) {
-    throw userInputError(multipleNestedArchiveMessage);
+  if (nestedArchives.length > 0 && depth >= 1) {
+    throw userInputError(nestedArchiveMessage);
   }
 
-  if (nestedArchives.length === 1 && depth >= 1) {
-    throw userInputError(nestedArchiveMessage);
+  if (nestedArchives.length > 1 && !allowMultiChapterPack) {
+    throw userInputError(
+      "This archive contains multiple comic archives inside. Upload it as a pack or extract one inner archive and upload it directly."
+    );
   }
 
   if (images.length === 0 && nestedArchives.length === 0) {
@@ -219,6 +227,15 @@ function finalizeDiscoveredPages(discovered) {
   }
 
   return discovered;
+}
+
+function sanitizeChapterTitleFromArchiveName(filename) {
+  const baseName = path.posix.basename(filename);
+  const extension = path.extname(baseName);
+  const withoutExtension = extension ? baseName.slice(0, -extension.length) : baseName;
+  const cleanTitle = withoutExtension.replace(/[\x00-\x1f]/g, "").trim().replace(/\s+/g, " ");
+
+  return cleanTitle || "Chapter";
 }
 
 async function listZipEntries(filePath) {
@@ -315,7 +332,7 @@ async function extractZipImages(filePath, outputDir, images) {
 
 async function extractNestedZipArchive(filePath, outputDir, nestedArchive, depth) {
   const nestedPath = path.join(outputDir, `__nested-${depth + 1}${nestedArchive.extension}`);
-  await extractZipTargets(filePath, [{ ...nestedArchive, tempPath: nestedPath }]);
+  await extractZipNestedArchive(filePath, nestedArchive, nestedPath);
 
   try {
     return await extractArchive(nestedPath, nestedArchive.originalPath, outputDir, depth + 1);
@@ -335,6 +352,10 @@ async function extractZipArchive(filePath, originalFilename, outputDir, depth) {
   }
 
   return extractZipImages(filePath, outputDir, plan.images);
+}
+
+async function extractZipNestedArchive(filePath, nestedArchive, nestedPath) {
+  await extractZipTargets(filePath, [{ ...nestedArchive, tempPath: nestedPath }]);
 }
 
 async function createRarExtractor(filePath) {
@@ -420,7 +441,7 @@ async function extractRarImages(filePath, outputDir, images) {
 
 async function extractNestedRarArchive(filePath, outputDir, nestedArchive, depth) {
   const nestedPath = path.join(outputDir, `__nested-${depth + 1}${nestedArchive.extension}`);
-  await extractRarFiles(filePath, [{ ...nestedArchive, tempPath: nestedPath }]);
+  await extractRarNestedArchive(filePath, nestedArchive, nestedPath);
 
   try {
     return await extractArchive(nestedPath, nestedArchive.originalPath, outputDir, depth + 1);
@@ -446,6 +467,19 @@ async function extractRarArchive(filePath, originalFilename, outputDir, depth) {
   }
 }
 
+async function extractRarNestedArchive(filePath, nestedArchive, nestedPath) {
+  await extractRarFiles(filePath, [{ ...nestedArchive, tempPath: nestedPath }]);
+}
+
+async function extractNestedArchiveFile(filePath, archiveKind, nestedArchive, nestedPath) {
+  if (archiveKind === "rar") {
+    await extractRarNestedArchive(filePath, nestedArchive, nestedPath);
+    return;
+  }
+
+  await extractZipNestedArchive(filePath, nestedArchive, nestedPath);
+}
+
 export async function extractArchive(filePath, originalFilename, outputDir, depth = 0) {
   const archiveKind = getArchiveKind(originalFilename);
   validateArchiveFilename(originalFilename);
@@ -460,4 +494,61 @@ export async function extractArchive(filePath, originalFilename, outputDir, dept
   }
 
   return extractZipArchive(filePath, originalFilename, outputDir, depth);
+}
+
+export async function extractArchiveChapters(filePath, originalFilename, outputDir) {
+  const archiveKind = getArchiveKind(originalFilename);
+  validateArchiveFilename(originalFilename);
+  await mkdir(outputDir, { recursive: true });
+
+  logArchive(`Processing outer archive ${originalFilename}`);
+
+  const entries = archiveKind === "rar"
+    ? await listRarEntries(filePath)
+    : await listZipEntries(filePath);
+  const plan = classifyEntries(entries);
+  assertExtractionPlan(plan, 0, { allowMultiChapterPack: true });
+
+  if (plan.nestedArchives.length <= 1) {
+    const chapterOutputDir = path.join(outputDir, "chapter-0001");
+    const pages = await extractArchive(filePath, originalFilename, chapterOutputDir, 0);
+
+    return [
+      {
+        chapterTitle: null,
+        originalFilename,
+        pages
+      }
+    ];
+  }
+
+  logArchive(`Processing multi-chapter pack with ${plan.nestedArchives.length} inner archives`);
+
+  const chapters = [];
+  const nestedOutputDir = path.join(outputDir, "nested-archives");
+  await mkdir(nestedOutputDir, { recursive: true });
+
+  for (const [index, nestedArchive] of plan.nestedArchives.entries()) {
+    const chapterNumber = String(index + 1).padStart(4, "0");
+    const nestedPath = path.join(nestedOutputDir, `${chapterNumber}${nestedArchive.extension}`);
+    const chapterOutputDir = path.join(outputDir, `chapter-${chapterNumber}`);
+
+    logArchive(`Processing pack item ${nestedArchive.originalPath}`);
+    await extractNestedArchiveFile(filePath, archiveKind, nestedArchive, nestedPath);
+
+    const pages = await extractArchive(
+      nestedPath,
+      nestedArchive.originalPath,
+      chapterOutputDir,
+      1
+    );
+
+    chapters.push({
+      chapterTitle: sanitizeChapterTitleFromArchiveName(nestedArchive.originalPath),
+      originalFilename: nestedArchive.originalPath,
+      pages
+    });
+  }
+
+  return chapters;
 }

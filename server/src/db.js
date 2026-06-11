@@ -287,15 +287,10 @@ export function getOrCreateManga(title) {
     throw new Error("Manga title is required");
   }
 
-  const existing = db.prepare(`
-    SELECT * FROM mangas
-    WHERE lower(title) = lower(?)
-    ORDER BY created_at ASC
-    LIMIT 1
-  `).get(cleanTitle);
+  const existing = findMangaByTitle(cleanTitle);
 
   if (existing) {
-    return rowToManga(existing);
+    return existing;
   }
 
   const id = randomUUID();
@@ -312,6 +307,57 @@ export function getOrCreateManga(title) {
     created_at: createdAt,
     updated_at: createdAt
   });
+}
+
+export function findMangaByTitle(title) {
+  const cleanTitle = normalizeTitle(title);
+  if (!cleanTitle) {
+    return null;
+  }
+
+  const existing = db.prepare(`
+    SELECT * FROM mangas
+    WHERE lower(title) = lower(?)
+    ORDER BY created_at ASC
+    LIMIT 1
+  `).get(cleanTitle);
+
+  if (existing) {
+    return rowToManga(existing);
+  }
+
+  return null;
+}
+
+export function deleteChapters(chapterIds) {
+  if (!chapterIds.length) {
+    return;
+  }
+
+  try {
+    db.exec("BEGIN");
+    const deleteChapter = db.prepare("DELETE FROM chapters WHERE id = ?");
+
+    for (const chapterId of chapterIds) {
+      deleteChapter.run(chapterId);
+    }
+
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
+export function deleteMangaIfEmpty(mangaId) {
+  db.prepare(`
+    DELETE FROM mangas
+    WHERE id = ?
+      AND NOT EXISTS (
+        SELECT 1 FROM chapters
+        WHERE manga_id = ?
+      )
+  `).run(mangaId, mangaId);
 }
 
 export function createImportedChapter({

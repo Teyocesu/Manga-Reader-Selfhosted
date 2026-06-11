@@ -94,12 +94,13 @@ No incluye scraping, descargas externas, login, Docker, PWA ni deploy externo.
 - `.rar` y `.cbr`: lectura con `node-unrar-js`.
 - Imagenes directas dentro de `.zip`, `.cbz`, `.rar` o `.cbr`.
 - Un nivel de archive anidado, por ejemplo `.rar` con un `.cbr` adentro o `.zip` con un `.cbz` adentro.
+- Packs con varios archives internos soportados y sin imagenes directas. Cada archive interno se importa como un capitulo separado.
 
 Para probar `.rar` o `.cbr`, usa siempre un archivo RAR valido propio o legalmente obtenido.
 
 Para RAR se eligio `node-unrar-js` porque funciona en Node sin instalar binarios externos. Su ultima version publicada no es reciente, pero es mas simple y segura para este MVP que depender de herramientas del sistema o de alternativas mas antiguas como `unrar-js`.
 
-Si un archive trae varios archives internos, extrae uno manualmente y subilo por separado. Si mezcla imagenes y archives internos, la app rechaza el upload para evitar ambiguedades.
+Si mezcla imagenes y archives internos, la app rechaza el upload para evitar ambiguedades. Si un archive interno trae otro archive adentro, se rechaza para mantener profundidad maxima 1.
 
 ## API minima
 

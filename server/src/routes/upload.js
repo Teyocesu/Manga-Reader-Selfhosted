@@ -3,9 +3,16 @@ import { mkdir, rename } from "node:fs/promises";
 import path from "node:path";
 import { Router } from "express";
 import multer from "multer";
-import { extractArchive, validateArchiveFilename } from "../archive.js";
+import { extractArchiveChapters, validateArchiveFilename } from "../archive.js";
 import { config, maxUploadBytes } from "../config.js";
-import { createImportedChapter, getOrCreateManga } from "../db.js";
+import {
+  createImportedChapter,
+  deleteChapters,
+  deleteMangaIfEmpty,
+  findMangaByTitle,
+  getManga,
+  getOrCreateManga
+} from "../db.js";
 import {
   ensureStorageDirs,
   libraryDir,
@@ -48,7 +55,9 @@ function pageFilename(index, extension) {
 
 uploadRouter.post("/upload", upload.single("archive"), async (req, res, next) => {
   let extractDir;
-  let chapterDir;
+  let createdMangaId = null;
+  const chapterDirs = [];
+  const createdChapterIds = [];
 
   try {
     const mangaTitle = cleanTitle(req.body.mangaTitle);
@@ -62,43 +71,83 @@ uploadRouter.post("/upload", upload.single("archive"), async (req, res, next) =>
       return res.status(400).json({ error: "Archive file is required" });
     }
 
-    const chapterId = randomUUID();
-    extractDir = path.join(tempDir, `extract-${chapterId}`);
-    const extractedPages = await extractArchive(
+    const uploadId = randomUUID();
+    extractDir = path.join(tempDir, `extract-${uploadId}`);
+    const extractedChapters = await extractArchiveChapters(
       req.file.path,
       req.file.originalname,
       extractDir
     );
 
+    const existingManga = findMangaByTitle(mangaTitle);
     const manga = getOrCreateManga(mangaTitle);
-    chapterDir = path.join(libraryDir, manga.id, chapterId);
-    await mkdir(chapterDir, { recursive: true });
-
-    const pages = [];
-    for (const [index, page] of extractedPages.entries()) {
-      const filename = pageFilename(index, page.extension);
-      const finalPath = path.join(chapterDir, filename);
-      await rename(page.tempPath, finalPath);
-      pages.push({
-        pageIndex: index,
-        filename,
-        storagePath: relativeStoragePath(finalPath),
-        mimeType: page.mimeType
-      });
+    if (!existingManga) {
+      createdMangaId = manga.id;
     }
 
-    const chapter = createImportedChapter({
-      mangaId: manga.id,
-      chapterId,
-      chapterTitle,
-      originalFilename: req.file.originalname,
-      chapterStoragePath: relativeStoragePath(chapterDir),
-      pages
-    });
+    const importedChapters = [];
+    const isPack = extractedChapters.length > 1;
 
-    res.status(201).json(chapter);
+    for (const extractedChapter of extractedChapters) {
+      const chapterId = randomUUID();
+      const chapterDir = path.join(libraryDir, manga.id, chapterId);
+      chapterDirs.push(chapterDir);
+      await mkdir(chapterDir, { recursive: true });
+
+      const pages = [];
+      for (const [index, page] of extractedChapter.pages.entries()) {
+        const filename = pageFilename(index, page.extension);
+        const finalPath = path.join(chapterDir, filename);
+        await rename(page.tempPath, finalPath);
+        pages.push({
+          pageIndex: index,
+          filename,
+          storagePath: relativeStoragePath(finalPath),
+          mimeType: page.mimeType
+        });
+      }
+
+      const importedChapter = createImportedChapter({
+        mangaId: manga.id,
+        chapterId,
+        chapterTitle: isPack ? extractedChapter.chapterTitle : chapterTitle,
+        originalFilename: isPack ? extractedChapter.originalFilename : req.file.originalname,
+        chapterStoragePath: relativeStoragePath(chapterDir),
+        pages
+      });
+
+      createdChapterIds.push(chapterId);
+      importedChapters.push(importedChapter);
+    }
+
+    if (importedChapters.length === 1) {
+      res.status(201).json(importedChapters[0]);
+      return;
+    }
+
+    const updatedManga = getManga(manga.id);
+    const { chapters: _chapters, ...mangaSummary } = updatedManga || manga;
+
+    res.status(201).json({
+      manga: mangaSummary,
+      chapters: importedChapters.map((chapter) => chapter.chapter),
+      totalChapters: importedChapters.length,
+      totalPages: importedChapters.reduce(
+        (total, chapter) => total + chapter.chapter.pageCount,
+        0
+      )
+    });
   } catch (error) {
-    await removeQuietly(chapterDir);
+    try {
+      deleteChapters(createdChapterIds);
+      if (createdMangaId) {
+        deleteMangaIfEmpty(createdMangaId);
+      }
+    } catch {
+      // Keep the original upload error; storage cleanup still runs below.
+    }
+
+    await Promise.all(chapterDirs.map((chapterDir) => removeQuietly(chapterDir)));
     next(error);
   } finally {
     await removeQuietly(extractDir);
