@@ -10,7 +10,7 @@ node -e "const fs=require('node:fs'); const png=Buffer.from('iVBORw0KGgoAAAANSUh
 zip -j /tmp/manga-reader-fixture/chapter.cbz /tmp/manga-reader-fixture/pages/1.png /tmp/manga-reader-fixture/pages/2.png /tmp/manga-reader-fixture/pages/10.png
 ```
 
-Subir `chapter.cbz` desde la pantalla `Subir`.
+Subir `chapter.cbz` desde la pantalla `Subir`. El campo `Título base` es opcional; si queda vacio, se usa el nombre del archivo.
 
 ## RAR / CBR
 
@@ -54,5 +54,6 @@ zip -j /tmp/manga-reader-fixture/pack.zip /tmp/manga-reader-fixture/chapter-01.c
 ```
 
 Subir `pack.zip`. La respuesta debe indicar 2 capitulos y 6 paginas.
+Si se sube el mismo pack otra vez para el mismo manga, la respuesta debe indicar que esos capitulos ya existian y no crear copias nuevas.
 
 Si hay imagenes y archives internos mezclados, el upload se rechaza con un error claro. Si un archive interno trae otro archive adentro, se rechaza para mantener profundidad maxima 1.

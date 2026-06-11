@@ -3,12 +3,17 @@ import { mkdir, rename } from "node:fs/promises";
 import path from "node:path";
 import { Router } from "express";
 import multer from "multer";
-import { extractArchiveChapters, validateArchiveFilename } from "../archive.js";
+import {
+  extractArchiveChapters,
+  sanitizeChapterTitleFromArchiveName,
+  validateArchiveFilename
+} from "../archive.js";
 import { config, maxUploadBytes } from "../config.js";
 import {
   createImportedChapter,
   deleteChapters,
   deleteMangaIfEmpty,
+  findChapterByTitle,
   findMangaByTitle,
   getManga,
   getOrCreateManga
@@ -53,6 +58,34 @@ function pageFilename(index, extension) {
   return `${String(index + 1).padStart(4, "0")}${extension}`;
 }
 
+function summarizeImport({ manga, importedChapters, skippedChapters }) {
+  const updatedManga = getManga(manga.id);
+  const { chapters: _chapters, ...mangaSummary } = updatedManga || manga;
+  const totalPages = importedChapters.reduce(
+    (total, chapter) => total + chapter.chapter.pageCount,
+    0
+  );
+  const totalChapters = importedChapters.length;
+  const totalSkipped = skippedChapters.length;
+
+  let message = "";
+  if (totalChapters > 0 && totalSkipped > 0) {
+    message = `Se importaron ${totalChapters} capítulo${totalChapters === 1 ? "" : "s"} y se omitieron ${totalSkipped} duplicado${totalSkipped === 1 ? "" : "s"}.`;
+  } else if (totalChapters === 0 && totalSkipped > 0) {
+    message = `No se importaron capítulos nuevos: ${totalSkipped} ya existía${totalSkipped === 1 ? "" : "n"}.`;
+  }
+
+  return {
+    manga: mangaSummary,
+    chapters: importedChapters.map((chapter) => chapter.chapter),
+    skippedChapters,
+    totalChapters,
+    totalPages,
+    totalSkipped,
+    message
+  };
+}
+
 uploadRouter.post("/upload", upload.single("archive"), async (req, res, next) => {
   let extractDir;
   let createdMangaId = null;
@@ -63,8 +96,8 @@ uploadRouter.post("/upload", upload.single("archive"), async (req, res, next) =>
     const mangaTitle = cleanTitle(req.body.mangaTitle);
     const chapterTitle = cleanTitle(req.body.chapterTitle);
 
-    if (!mangaTitle || !chapterTitle) {
-      return res.status(400).json({ error: "Manga title and chapter title are required" });
+    if (!mangaTitle) {
+      return res.status(400).json({ error: "Manga title is required" });
     }
 
     if (!req.file) {
@@ -86,9 +119,23 @@ uploadRouter.post("/upload", upload.single("archive"), async (req, res, next) =>
     }
 
     const importedChapters = [];
+    const skippedChapters = [];
     const isPack = extractedChapters.length > 1;
 
     for (const extractedChapter of extractedChapters) {
+      const finalChapterTitle = isPack
+        ? extractedChapter.chapterTitle
+        : chapterTitle || sanitizeChapterTitleFromArchiveName(req.file.originalname);
+      const existingChapter = findChapterByTitle(manga.id, finalChapterTitle);
+
+      if (existingChapter) {
+        skippedChapters.push({
+          title: finalChapterTitle,
+          reason: "Ya existe un capítulo con ese título en este manga."
+        });
+        continue;
+      }
+
       const chapterId = randomUUID();
       const chapterDir = path.join(libraryDir, manga.id, chapterId);
       chapterDirs.push(chapterDir);
@@ -110,7 +157,7 @@ uploadRouter.post("/upload", upload.single("archive"), async (req, res, next) =>
       const importedChapter = createImportedChapter({
         mangaId: manga.id,
         chapterId,
-        chapterTitle: isPack ? extractedChapter.chapterTitle : chapterTitle,
+        chapterTitle: finalChapterTitle,
         originalFilename: isPack ? extractedChapter.originalFilename : req.file.originalname,
         chapterStoragePath: relativeStoragePath(chapterDir),
         pages
@@ -120,23 +167,14 @@ uploadRouter.post("/upload", upload.single("archive"), async (req, res, next) =>
       importedChapters.push(importedChapter);
     }
 
-    if (importedChapters.length === 1) {
+    if (importedChapters.length === 1 && skippedChapters.length === 0) {
       res.status(201).json(importedChapters[0]);
       return;
     }
 
-    const updatedManga = getManga(manga.id);
-    const { chapters: _chapters, ...mangaSummary } = updatedManga || manga;
-
-    res.status(201).json({
-      manga: mangaSummary,
-      chapters: importedChapters.map((chapter) => chapter.chapter),
-      totalChapters: importedChapters.length,
-      totalPages: importedChapters.reduce(
-        (total, chapter) => total + chapter.chapter.pageCount,
-        0
-      )
-    });
+    res.status(importedChapters.length > 0 ? 201 : 200).json(
+      summarizeImport({ manga, importedChapters, skippedChapters })
+    );
   } catch (error) {
     try {
       deleteChapters(createdChapterIds);

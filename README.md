@@ -63,12 +63,13 @@ El backend escucha en `0.0.0.0` para que otros dispositivos de la misma red pued
 
 1. Abrir `http://localhost:5173`.
 2. Entrar en `Subir`.
-3. Completar titulo de manga, titulo de capitulo y elegir un archivo `.zip`, `.cbz`, `.rar` o `.cbr`.
+3. Completar titulo de manga, opcionalmente un titulo base, y elegir un archivo `.zip`, `.cbz`, `.rar` o `.cbr`.
 4. Abrir el manga desde la biblioteca.
 5. Entrar al capitulo.
 6. Leer en modo `Pagina` o `Webtoon`.
 
 El progreso se guarda automaticamente en SQLite.
+Si el titulo base queda vacio, la importacion usa el nombre del archivo. En packs, cada capitulo usa el nombre sanitizado del archive interno. Si ya existe un capitulo con el mismo titulo dentro del manga, se omite para evitar duplicados visibles.
 
 ## Archivos locales
 

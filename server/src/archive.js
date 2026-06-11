@@ -229,7 +229,7 @@ function finalizeDiscoveredPages(discovered) {
   return discovered;
 }
 
-function sanitizeChapterTitleFromArchiveName(filename) {
+export function sanitizeChapterTitleFromArchiveName(filename) {
   const baseName = path.posix.basename(filename);
   const extension = path.extname(baseName);
   const withoutExtension = extension ? baseName.slice(0, -extension.length) : baseName;

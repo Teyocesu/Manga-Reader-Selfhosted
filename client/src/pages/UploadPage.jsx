@@ -25,6 +25,9 @@ export function UploadPage({ onNavigate }) {
   const alreadyImportedFromSelection =
     Boolean(fileKey) && importedSubmissionKey === submissionKey;
   const submitDisabled = status.loading || alreadyImportedFromSelection;
+  const previewTitle = archive
+    ? chapterTitle.trim() || titleFromFilename(archive.name)
+    : "";
 
   useEffect(() => {
     let alive = true;
@@ -59,6 +62,37 @@ export function UploadPage({ onNavigate }) {
     return `${file.name} · ${sizeMb >= 1 ? sizeMb.toFixed(1) : "<1"} MB`;
   }
 
+  function titleFromFilename(filename) {
+    return filename
+      .replace(/\.[^.]+$/, "")
+      .replace(/[\x00-\x1f]/g, "")
+      .trim()
+      .replace(/\s+/g, " ") || "Capítulo";
+  }
+
+  function formatUploadSummary(result) {
+    if (result.message) {
+      return result.message;
+    }
+
+    if (result.totalChapters > 1) {
+      return `Pack importado: ${result.totalChapters} capítulos, ${result.totalPages} páginas.`;
+    }
+
+    if (result.totalChapters === 1) {
+      const skipped = result.totalSkipped
+        ? ` Se omitieron ${result.totalSkipped} duplicado${result.totalSkipped === 1 ? "" : "s"}.`
+        : "";
+      return `Importado: 1 capítulo, ${result.totalPages} páginas.${skipped}`;
+    }
+
+    if (result.totalSkipped > 0) {
+      return `No se importaron capítulos nuevos: ${result.totalSkipped} ya existía${result.totalSkipped === 1 ? "" : "n"}.`;
+    }
+
+    return "Importación finalizada.";
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
 
@@ -76,11 +110,12 @@ export function UploadPage({ onNavigate }) {
     try {
       const result = await uploadChapter({ mangaTitle, chapterTitle, archive });
       setImportedSubmissionKey(submissionKey);
-      if (result.totalChapters > 1) {
+
+      if ("totalChapters" in result) {
         setStatus({
           loading: false,
           error: "",
-          success: `Pack importado: ${result.totalChapters} capítulos, ${result.totalPages} páginas.`
+          success: formatUploadSummary(result)
         });
         return;
       }
@@ -95,10 +130,10 @@ export function UploadPage({ onNavigate }) {
     <section className="page-section upload-layout">
       <div className="upload-intro">
         <p className="eyebrow">Upload local</p>
-        <h1>Sumar un capítulo</h1>
+        <h1>Importar manga</h1>
         <p className="hero-copy">
-          Cargá un archivo propio, el servidor lo valida y guarda las páginas
-          en tu storage local.
+          Cargá un archivo propio, el servidor lo valida y guarda capítulos o
+          tomos en tu storage local.
         </p>
       </div>
 
@@ -117,15 +152,14 @@ export function UploadPage({ onNavigate }) {
         </label>
 
         <label>
-          Capitulo
+          Título base (opcional)
           <input
             value={chapterTitle}
             onChange={(event) => {
               setChapterTitle(event.target.value);
               setStatus((current) => ({ ...current, success: "" }));
             }}
-            placeholder="Ej: Capitulo 1"
-            required
+            placeholder="Ej: Tomo 01"
           />
         </label>
 
@@ -150,6 +184,11 @@ export function UploadPage({ onNavigate }) {
           {appConfig.upload.maxUploadMb} MB
         </p>
         {archive ? <p className="file-summary">{formatFileSize(archive)}</p> : null}
+        {previewTitle ? (
+          <p className="form-help">
+            Se importará como: {previewTitle}. Si es un pack, se usarán los nombres de los archivos internos.
+          </p>
+        ) : null}
 
         {status.error ? <p className="error">{status.error}</p> : null}
         {status.success ? <p className="success">{status.success}</p> : null}

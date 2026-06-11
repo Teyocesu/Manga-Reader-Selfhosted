@@ -360,6 +360,32 @@ export function deleteMangaIfEmpty(mangaId) {
   `).run(mangaId, mangaId);
 }
 
+export function findChapterByTitle(mangaId, title) {
+  const cleanTitle = normalizeTitle(title);
+  if (!mangaId || !cleanTitle) {
+    return null;
+  }
+
+  const chapter = db.prepare(`
+    SELECT
+      chapters.*,
+      COUNT(pages.id) AS page_count,
+      reading_progress.current_page_index,
+      reading_progress.mode,
+      reading_progress.updated_at AS progress_updated_at
+    FROM chapters
+    LEFT JOIN pages ON pages.chapter_id = chapters.id
+    LEFT JOIN reading_progress ON reading_progress.chapter_id = chapters.id
+    WHERE chapters.manga_id = ?
+      AND lower(chapters.title) = lower(?)
+    GROUP BY chapters.id
+    ORDER BY chapters.created_at ASC
+    LIMIT 1
+  `).get(mangaId, cleanTitle);
+
+  return chapter ? rowToChapter(chapter) : null;
+}
+
 export function createImportedChapter({
   mangaId,
   chapterId,
