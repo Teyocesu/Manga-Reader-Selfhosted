@@ -8,6 +8,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "../..");
 const dataDir = path.join(rootDir, "data");
 const dbPath = path.join(dataDir, "manga-reader.sqlite");
+const collator = new Intl.Collator(undefined, {
+  numeric: true,
+  sensitivity: "base"
+});
 
 mkdirSync(dataDir, { recursive: true });
 
@@ -191,6 +195,8 @@ export function getManga(mangaId) {
     GROUP BY chapters.id
     ORDER BY chapters.created_at DESC
   `).all(mangaId);
+
+  chapters.sort((a, b) => collator.compare(a.title, b.title));
 
   return {
     ...rowToManga({ ...manga, chapter_count: chapters.length }),

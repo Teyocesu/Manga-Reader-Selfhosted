@@ -81,6 +81,9 @@ export function LibraryPage({ onNavigate }) {
                 <h2>{manga.title}</h2>
                 <p>
                   {manga.chapterCount} capitulo{manga.chapterCount === 1 ? "" : "s"}
+                  {manga.lastReadAt && manga.continueChapter
+                    ? ` · último leído: ${manga.continueChapter.title}`
+                    : ""}
                 </p>
                 <div className="card-actions">
                   <button onClick={() => onNavigate(`/manga/${manga.id}`)}>Ver</button>
