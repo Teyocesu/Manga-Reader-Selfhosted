@@ -114,8 +114,10 @@ Si mezcla imagenes y archives internos, la app rechaza el upload para evitar amb
 - `GET /api/library`
 - `GET /api/mangas/:mangaId`
 - `GET /api/mangas/:mangaId/thumbnail`
+- `PUT /api/mangas/:mangaId`
 - `DELETE /api/mangas/:mangaId`
 - `GET /api/chapters/:chapterId`
+- `PUT /api/chapters/:chapterId`
 - `DELETE /api/chapters/:chapterId`
 - `POST /api/upload`
 - `GET /api/pages/:pageId/image`

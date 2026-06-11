@@ -501,6 +501,62 @@ export function findChapterByTitle(mangaId, title) {
   return chapter ? rowToChapter(chapter) : null;
 }
 
+export function updateMangaTitle(mangaId, title) {
+  const cleanTitle = normalizeTitle(title);
+  if (!cleanTitle) {
+    const error = new Error("Manga title is required");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const existing = db.prepare("SELECT id FROM mangas WHERE id = ?").get(mangaId);
+  if (!existing) {
+    return null;
+  }
+
+  db.prepare(`
+    UPDATE mangas
+    SET title = ?,
+        updated_at = ?
+    WHERE id = ?
+  `).run(cleanTitle, now(), mangaId);
+
+  return getManga(mangaId);
+}
+
+export function updateChapterTitle(chapterId, title) {
+  const cleanTitle = normalizeTitle(title);
+  if (!cleanTitle) {
+    const error = new Error("Chapter title is required");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const chapter = db.prepare(`
+    SELECT id, manga_id
+    FROM chapters
+    WHERE id = ?
+  `).get(chapterId);
+  if (!chapter) {
+    return null;
+  }
+
+  const updatedAt = now();
+  db.prepare(`
+    UPDATE chapters
+    SET title = ?,
+        updated_at = ?
+    WHERE id = ?
+  `).run(cleanTitle, updatedAt, chapterId);
+  db.prepare(`
+    UPDATE mangas
+    SET updated_at = ?
+    WHERE id = ?
+  `).run(updatedAt, chapter.manga_id);
+
+  return getChapter(chapterId);
+}
+
 export function createImportedChapter({
   mangaId,
   chapterId,

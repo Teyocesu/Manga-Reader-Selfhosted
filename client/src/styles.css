@@ -438,6 +438,35 @@ h2 {
   justify-content: end;
 }
 
+.detail-actions {
+  margin-top: 14px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.inline-edit-form {
+  max-width: 520px;
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.inline-edit-form label {
+  display: grid;
+  gap: 6px;
+  color: #aab2c5;
+  font-size: 0.92rem;
+  font-weight: 850;
+}
+
+.inline-edit-form.compact {
+  max-width: 620px;
+  margin-top: 10px;
+}
+
 .reader-page {
   width: min(100%, 1280px);
   margin: 0 auto;
@@ -682,6 +711,10 @@ h2 {
     display: grid;
     grid-template-columns: 1fr;
     justify-content: stretch;
+  }
+
+  .inline-edit-form {
+    grid-template-columns: 1fr;
   }
 
   .app-header {

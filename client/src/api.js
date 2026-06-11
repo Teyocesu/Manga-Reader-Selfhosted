@@ -53,6 +53,26 @@ export function deleteChapter(chapterId) {
   });
 }
 
+export function updateManga(mangaId, payload) {
+  return request(`/mangas/${mangaId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function updateChapter(chapterId, payload) {
+  return request(`/chapters/${chapterId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
 export function getProgress(chapterId) {
   return request(`/progress/${chapterId}`);
 }

@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
-import { deleteChapter, deleteManga, getManga, imageUrl } from "../api.js";
+import {
+  deleteChapter,
+  deleteManga,
+  getManga,
+  imageUrl,
+  updateChapter,
+  updateManga
+} from "../api.js";
 
 export function MangaDetailPage({ mangaId, onNavigate }) {
   const [state, setState] = useState({
@@ -8,6 +15,8 @@ export function MangaDetailPage({ mangaId, onNavigate }) {
     manga: null,
     message: ""
   });
+  const [mangaTitleDraft, setMangaTitleDraft] = useState("");
+  const [chapterTitleDrafts, setChapterTitleDrafts] = useState({});
 
   function loadManga() {
     let alive = true;
@@ -21,6 +30,12 @@ export function MangaDetailPage({ mangaId, onNavigate }) {
             error: "",
             manga
           }));
+          setMangaTitleDraft(manga.title);
+          setChapterTitleDrafts(
+            Object.fromEntries(
+              manga.chapters.map((chapter) => [chapter.id, chapter.title])
+            )
+          );
         }
       })
       .catch((error) => {
@@ -55,6 +70,39 @@ export function MangaDetailPage({ mangaId, onNavigate }) {
     try {
       await deleteManga(mangaId);
       onNavigate("/");
+    } catch (error) {
+      setState((current) => ({ ...current, error: error.message }));
+    }
+  }
+
+  async function handleSaveMangaTitle(event) {
+    event.preventDefault();
+
+    try {
+      const manga = await updateManga(mangaId, { title: mangaTitleDraft });
+      setState((current) => ({
+        ...current,
+        error: "",
+        message: "Título de manga actualizado.",
+        manga
+      }));
+      setMangaTitleDraft(manga.title);
+    } catch (error) {
+      setState((current) => ({ ...current, error: error.message }));
+    }
+  }
+
+  async function handleSaveChapterTitle(event, chapter) {
+    event.preventDefault();
+
+    try {
+      await updateChapter(chapter.id, { title: chapterTitleDrafts[chapter.id] });
+      setState((current) => ({
+        ...current,
+        error: "",
+        message: `Se actualizó "${chapter.title}".`
+      }));
+      loadManga();
     } catch (error) {
       setState((current) => ({ ...current, error: error.message }));
     }
@@ -113,9 +161,21 @@ export function MangaDetailPage({ mangaId, onNavigate }) {
             {state.manga.chapters.length === 1 ? "" : "s"} disponible
             {state.manga.chapters.length === 1 ? "" : "s"}.
           </p>
-          <button className="danger-button" onClick={handleDeleteManga}>
-            Borrar manga
-          </button>
+          <form className="inline-edit-form" onSubmit={handleSaveMangaTitle}>
+            <label>
+              Título del manga
+              <input
+                value={mangaTitleDraft}
+                onChange={(event) => setMangaTitleDraft(event.target.value)}
+              />
+            </label>
+            <button type="submit">Guardar título</button>
+          </form>
+          <div className="detail-actions">
+            <button className="danger-button" onClick={handleDeleteManga}>
+              Borrar manga
+            </button>
+          </div>
         </div>
       </div>
 
@@ -132,6 +192,24 @@ export function MangaDetailPage({ mangaId, onNavigate }) {
                   ? ` · progreso en página ${chapter.progress.currentPageIndex + 1}`
                   : ""}
               </p>
+              <form
+                className="inline-edit-form compact"
+                onSubmit={(event) => handleSaveChapterTitle(event, chapter)}
+              >
+                <label>
+                  Título
+                  <input
+                    value={chapterTitleDrafts[chapter.id] ?? chapter.title}
+                    onChange={(event) => {
+                      setChapterTitleDrafts((current) => ({
+                        ...current,
+                        [chapter.id]: event.target.value
+                      }));
+                    }}
+                  />
+                </label>
+                <button type="submit">Guardar</button>
+              </form>
             </div>
             <div className="chapter-actions">
               <button

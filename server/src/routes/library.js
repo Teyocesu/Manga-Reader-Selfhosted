@@ -7,7 +7,9 @@ import {
   getChapter,
   getManga,
   getMangaThumbnail,
-  listLibrary
+  listLibrary,
+  updateChapterTitle,
+  updateMangaTitle
 } from "../db.js";
 import { libraryDir, removeQuietly, resolveStoragePath } from "../storage.js";
 
@@ -24,6 +26,19 @@ libraryRouter.get("/mangas/:mangaId", (req, res) => {
   }
 
   res.json(manga);
+});
+
+libraryRouter.put("/mangas/:mangaId", (req, res, next) => {
+  try {
+    const manga = updateMangaTitle(req.params.mangaId, req.body?.title);
+    if (!manga) {
+      return res.status(404).json({ error: "Manga not found" });
+    }
+
+    res.json(manga);
+  } catch (error) {
+    next(error);
+  }
 });
 
 libraryRouter.get("/mangas/:mangaId/thumbnail", async (req, res, next) => {
@@ -54,6 +69,19 @@ libraryRouter.get("/chapters/:chapterId", (req, res) => {
   }
 
   res.json(chapter);
+});
+
+libraryRouter.put("/chapters/:chapterId", (req, res, next) => {
+  try {
+    const chapter = updateChapterTitle(req.params.chapterId, req.body?.title);
+    if (!chapter) {
+      return res.status(404).json({ error: "Chapter not found" });
+    }
+
+    res.json(chapter);
+  } catch (error) {
+    next(error);
+  }
 });
 
 libraryRouter.delete("/chapters/:chapterId", async (req, res, next) => {
