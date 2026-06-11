@@ -360,6 +360,71 @@ export function deleteChapters(chapterIds) {
   }
 }
 
+export function deleteChapter(chapterId) {
+  const chapter = db.prepare(`
+    SELECT id, manga_id, storage_path
+    FROM chapters
+    WHERE id = ?
+  `).get(chapterId);
+
+  if (!chapter) {
+    return null;
+  }
+
+  try {
+    db.exec("BEGIN");
+    db.prepare("DELETE FROM chapters WHERE id = ?").run(chapterId);
+    db.prepare(`
+      UPDATE mangas
+      SET updated_at = ?
+      WHERE id = ?
+    `).run(now(), chapter.manga_id);
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+
+  return {
+    id: chapter.id,
+    mangaId: chapter.manga_id,
+    storagePath: chapter.storage_path
+  };
+}
+
+export function deleteManga(mangaId) {
+  const manga = db.prepare(`
+    SELECT id, thumbnail_path
+    FROM mangas
+    WHERE id = ?
+  `).get(mangaId);
+
+  if (!manga) {
+    return null;
+  }
+
+  const chapters = db.prepare(`
+    SELECT id, storage_path
+    FROM chapters
+    WHERE manga_id = ?
+  `).all(mangaId);
+
+  try {
+    db.exec("BEGIN");
+    db.prepare("DELETE FROM mangas WHERE id = ?").run(mangaId);
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+
+  return {
+    id: manga.id,
+    thumbnailPath: manga.thumbnail_path,
+    chapterStoragePaths: chapters.map((chapter) => chapter.storage_path)
+  };
+}
+
 export function deleteMangaIfEmpty(mangaId) {
   db.prepare(`
     DELETE FROM mangas

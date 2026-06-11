@@ -1,32 +1,84 @@
 import { useEffect, useState } from "react";
-import { getManga, imageUrl } from "../api.js";
+import { deleteChapter, deleteManga, getManga, imageUrl } from "../api.js";
 
 export function MangaDetailPage({ mangaId, onNavigate }) {
   const [state, setState] = useState({
     loading: true,
     error: "",
-    manga: null
+    manga: null,
+    message: ""
   });
 
-  useEffect(() => {
+  function loadManga() {
     let alive = true;
 
     getManga(mangaId)
       .then((manga) => {
         if (alive) {
-          setState({ loading: false, error: "", manga });
+          setState((current) => ({
+            ...current,
+            loading: false,
+            error: "",
+            manga
+          }));
         }
       })
       .catch((error) => {
         if (alive) {
-          setState({ loading: false, error: error.message, manga: null });
+          setState((current) => ({
+            ...current,
+            loading: false,
+            error: error.message,
+            manga: null
+          }));
         }
       });
 
     return () => {
       alive = false;
     };
+  }
+
+  useEffect(() => {
+    setState({ loading: true, error: "", manga: null, message: "" });
+    return loadManga();
   }, [mangaId]);
+
+  async function handleDeleteManga() {
+    const confirmed = window.confirm(
+      "Esto eliminará el manga completo, capítulos, progreso, páginas y miniatura."
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await deleteManga(mangaId);
+      onNavigate("/");
+    } catch (error) {
+      setState((current) => ({ ...current, error: error.message }));
+    }
+  }
+
+  async function handleDeleteChapter(chapter) {
+    const confirmed = window.confirm(
+      "Esto eliminará el capítulo y sus páginas del storage local."
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await deleteChapter(chapter.id);
+      setState((current) => ({
+        ...current,
+        message: `Se eliminó "${chapter.title}".`
+      }));
+      loadManga();
+    } catch (error) {
+      setState((current) => ({ ...current, error: error.message }));
+    }
+  }
 
   if (state.loading) {
     return <p className="status-card">Cargando manga...</p>;
@@ -61,8 +113,13 @@ export function MangaDetailPage({ mangaId, onNavigate }) {
             {state.manga.chapters.length === 1 ? "" : "s"} disponible
             {state.manga.chapters.length === 1 ? "" : "s"}.
           </p>
+          <button className="danger-button" onClick={handleDeleteManga}>
+            Borrar manga
+          </button>
         </div>
       </div>
+
+      {state.message ? <p className="success">{state.message}</p> : null}
 
       <div className="chapter-list">
         {state.manga.chapters.map((chapter) => (
@@ -76,12 +133,17 @@ export function MangaDetailPage({ mangaId, onNavigate }) {
                   : ""}
               </p>
             </div>
-            <button
-              className={chapter.progress ? "accent-button" : "primary-button"}
-              onClick={() => onNavigate(`/chapter/${chapter.id}`)}
-            >
-              {chapter.progress ? "Continuar" : "Leer"}
-            </button>
+            <div className="chapter-actions">
+              <button
+                className={chapter.progress ? "accent-button" : "primary-button"}
+                onClick={() => onNavigate(`/chapter/${chapter.id}`)}
+              >
+                {chapter.progress ? "Continuar" : "Leer"}
+              </button>
+              <button className="danger-button" onClick={() => handleDeleteChapter(chapter)}>
+                Borrar
+              </button>
+            </div>
           </article>
         ))}
       </div>

@@ -41,6 +41,18 @@ export function getChapter(chapterId) {
   return request(`/chapters/${chapterId}`);
 }
 
+export function deleteManga(mangaId) {
+  return request(`/mangas/${mangaId}`, {
+    method: "DELETE"
+  });
+}
+
+export function deleteChapter(chapterId) {
+  return request(`/chapters/${chapterId}`, {
+    method: "DELETE"
+  });
+}
+
 export function getProgress(chapterId) {
   return request(`/progress/${chapterId}`);
 }

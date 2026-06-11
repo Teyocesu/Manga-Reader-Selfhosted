@@ -1,7 +1,15 @@
 import { Router } from "express";
 import { access } from "node:fs/promises";
-import { getChapter, getManga, getMangaThumbnail, listLibrary } from "../db.js";
-import { resolveStoragePath } from "../storage.js";
+import path from "node:path";
+import {
+  deleteChapter,
+  deleteManga,
+  getChapter,
+  getManga,
+  getMangaThumbnail,
+  listLibrary
+} from "../db.js";
+import { libraryDir, removeQuietly, resolveStoragePath } from "../storage.js";
 
 export const libraryRouter = Router();
 
@@ -46,4 +54,44 @@ libraryRouter.get("/chapters/:chapterId", (req, res) => {
   }
 
   res.json(chapter);
+});
+
+libraryRouter.delete("/chapters/:chapterId", async (req, res, next) => {
+  try {
+    const deletedChapter = deleteChapter(req.params.chapterId);
+    if (!deletedChapter) {
+      return res.status(404).json({ error: "Chapter not found" });
+    }
+
+    await removeQuietly(resolveStoragePath(deletedChapter.storagePath));
+
+    res.json({
+      deletedChapterId: deletedChapter.id,
+      mangaId: deletedChapter.mangaId,
+      message: "Capítulo eliminado."
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+libraryRouter.delete("/mangas/:mangaId", async (req, res, next) => {
+  try {
+    const deletedManga = deleteManga(req.params.mangaId);
+    if (!deletedManga) {
+      return res.status(404).json({ error: "Manga not found" });
+    }
+
+    await removeQuietly(path.join(libraryDir, deletedManga.id));
+    if (deletedManga.thumbnailPath) {
+      await removeQuietly(resolveStoragePath(deletedManga.thumbnailPath));
+    }
+
+    res.json({
+      deletedMangaId: deletedManga.id,
+      message: "Manga eliminado."
+    });
+  } catch (error) {
+    next(error);
+  }
 });

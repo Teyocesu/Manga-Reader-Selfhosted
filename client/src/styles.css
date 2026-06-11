@@ -133,7 +133,8 @@ body.reader-immersive-active .app-shell {
 }
 
 .primary-button,
-.accent-button {
+.accent-button,
+.danger-button {
   border-color: transparent;
   color: #ffffff;
 }
@@ -146,6 +147,11 @@ body.reader-immersive-active .app-shell {
 .accent-button {
   background: linear-gradient(135deg, #0d9488, #7c3aed);
   box-shadow: 0 16px 32px rgba(20, 184, 166, 0.16);
+}
+
+.danger-button {
+  background: rgba(127, 29, 29, 0.78);
+  box-shadow: 0 16px 32px rgba(127, 29, 29, 0.16);
 }
 
 .text-button {
@@ -425,6 +431,13 @@ h2 {
   margin: 6px 0 0;
 }
 
+.chapter-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: end;
+}
+
 .reader-page {
   width: min(100%, 1280px);
   margin: 0 auto;
@@ -663,6 +676,12 @@ h2 {
   .reader-actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
+  }
+
+  .chapter-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    justify-content: stretch;
   }
 
   .app-header {

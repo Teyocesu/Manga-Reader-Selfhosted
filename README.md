@@ -72,6 +72,7 @@ El progreso se guarda automaticamente en SQLite.
 Si el titulo base queda vacio, la importacion usa el nombre del archivo. En packs, cada capitulo usa el nombre sanitizado del archive interno. Si ya existe un capitulo con el mismo titulo dentro del manga, se omite para evitar duplicados visibles.
 
 El lector incluye modo inmersivo, pantalla completa si el navegador lo permite, salto directo a pagina, progreso visible y atajos: flechas izquierda/derecha en modo pagina, `H` para ocultar/mostrar UI y `F` para pantalla completa.
+Desde el detalle se pueden borrar capitulos o el manga completo con confirmacion. Si se borra el ultimo capitulo, el manga queda vacio para que puedas decidir si conservarlo o borrarlo completo.
 
 ## Archivos locales
 
@@ -112,7 +113,10 @@ Si mezcla imagenes y archives internos, la app rechaza el upload para evitar amb
 - `GET /api/health`
 - `GET /api/library`
 - `GET /api/mangas/:mangaId`
+- `GET /api/mangas/:mangaId/thumbnail`
+- `DELETE /api/mangas/:mangaId`
 - `GET /api/chapters/:chapterId`
+- `DELETE /api/chapters/:chapterId`
 - `POST /api/upload`
 - `GET /api/pages/:pageId/image`
 - `GET /api/progress/:chapterId`
