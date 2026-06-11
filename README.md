@@ -71,6 +71,8 @@ El backend escucha en `0.0.0.0` para que otros dispositivos de la misma red pued
 El progreso se guarda automaticamente en SQLite.
 Si el titulo base queda vacio, la importacion usa el nombre del archivo. En packs, cada capitulo usa el nombre sanitizado del archive interno. Si ya existe un capitulo con el mismo titulo dentro del manga, se omite para evitar duplicados visibles.
 
+El lector incluye modo inmersivo, pantalla completa si el navegador lo permite, salto directo a pagina, progreso visible y atajos: flechas izquierda/derecha en modo pagina, `H` para ocultar/mostrar UI y `F` para pantalla completa.
+
 ## Archivos locales
 
 - Base de datos: `data/manga-reader.sqlite`

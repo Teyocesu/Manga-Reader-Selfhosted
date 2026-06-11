@@ -9,8 +9,12 @@ export function ReaderPage({ chapterId, onNavigate }) {
   });
   const [mode, setMode] = useState("page");
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
+  const [jumpValue, setJumpValue] = useState("1");
+  const [isImmersive, setIsImmersive] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [saveState, setSaveState] = useState("");
   const imageRefs = useRef([]);
+  const readerRef = useRef(null);
   const readyRef = useRef(false);
 
   useEffect(() => {
@@ -29,6 +33,7 @@ export function ReaderPage({ chapterId, onNavigate }) {
         setState({ loading: false, error: "", data });
         setMode(data.progress?.mode || "page");
         setCurrentPageIndex(safeIndex);
+        setJumpValue(String(safeIndex + 1));
         window.setTimeout(() => {
           readyRef.current = true;
         }, 0);
@@ -43,6 +48,10 @@ export function ReaderPage({ chapterId, onNavigate }) {
       alive = false;
     };
   }, [chapterId]);
+
+  useEffect(() => {
+    setJumpValue(String(currentPageIndex + 1));
+  }, [currentPageIndex]);
 
   useEffect(() => {
     if (!readyRef.current || !state.data) {
@@ -88,6 +97,59 @@ export function ReaderPage({ chapterId, onNavigate }) {
     return () => observer.disconnect();
   }, [mode, state.data]);
 
+  useEffect(() => {
+    document.body.classList.toggle("reader-immersive-active", isImmersive);
+
+    return () => {
+      document.body.classList.remove("reader-immersive-active");
+    };
+  }, [isImmersive]);
+
+  useEffect(() => {
+    function handleFullscreenChange() {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    }
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
+  useEffect(() => {
+    function handleKeyDown(event) {
+      if (!state.data) {
+        return;
+      }
+
+      const tagName = event.target?.tagName;
+      if (tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT") {
+        return;
+      }
+
+      if (event.key === "h" || event.key === "H") {
+        event.preventDefault();
+        setIsImmersive((value) => !value);
+      }
+
+      if (event.key === "f" || event.key === "F") {
+        event.preventDefault();
+        toggleFullscreen();
+      }
+
+      if (mode === "page" && event.key === "ArrowLeft") {
+        event.preventDefault();
+        previousPage();
+      }
+
+      if (mode === "page" && event.key === "ArrowRight") {
+        event.preventDefault();
+        nextPage();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  });
+
   if (state.loading) {
     return <p className="status-card">Cargando capitulo...</p>;
   }
@@ -99,6 +161,8 @@ export function ReaderPage({ chapterId, onNavigate }) {
   const { manga, chapter, pages } = state.data;
   const currentPage = pages[currentPageIndex];
   const pageCount = pages.length;
+  const progressPercent = Math.round(((currentPageIndex + 1) / pageCount) * 100);
+  const remainingPages = Math.max(0, pageCount - currentPageIndex - 1);
 
   function previousPage() {
     setCurrentPageIndex((value) => Math.max(0, value - 1));
@@ -108,8 +172,60 @@ export function ReaderPage({ chapterId, onNavigate }) {
     setCurrentPageIndex((value) => Math.min(pageCount - 1, value + 1));
   }
 
+  function goToPage(pageNumber) {
+    const targetPage = Number.parseInt(pageNumber, 10);
+    if (!Number.isInteger(targetPage)) {
+      setJumpValue(String(currentPageIndex + 1));
+      return;
+    }
+
+    const nextIndex = Math.min(Math.max(targetPage - 1, 0), pageCount - 1);
+    setCurrentPageIndex(nextIndex);
+    setJumpValue(String(nextIndex + 1));
+
+    if (mode === "webtoon") {
+      imageRefs.current[nextIndex]?.scrollIntoView({
+        block: "start",
+        behavior: "smooth"
+      });
+    }
+  }
+
+  function handleJumpSubmit(event) {
+    event.preventDefault();
+    goToPage(jumpValue);
+  }
+
+  function setReaderMode(nextMode) {
+    setMode(nextMode);
+    if (nextMode === "webtoon") {
+      window.setTimeout(() => {
+        imageRefs.current[currentPageIndex]?.scrollIntoView({
+          block: "start",
+          behavior: "smooth"
+        });
+      }, 0);
+    }
+  }
+
+  async function toggleFullscreen() {
+    if (!document.fullscreenEnabled) {
+      return;
+    }
+
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+      return;
+    }
+
+    await (readerRef.current || document.documentElement).requestFullscreen();
+  }
+
   return (
-    <section className={`reader-page ${mode === "webtoon" ? "webtoon-mode" : "page-mode"}`}>
+    <section
+      className={`reader-page ${mode === "webtoon" ? "webtoon-mode" : "page-mode"} ${isImmersive ? "immersive" : ""}`}
+      ref={readerRef}
+    >
       <div className="reader-topbar">
         <button className="text-button" onClick={() => onNavigate(`/manga/${manga.id}`)}>
           Volver
@@ -121,23 +237,64 @@ export function ReaderPage({ chapterId, onNavigate }) {
         <div className="mode-toggle" aria-label="Modo de lectura">
           <button
             className={mode === "page" ? "active" : ""}
-            onClick={() => setMode("page")}
+            onClick={() => setReaderMode("page")}
           >
             Pagina
           </button>
           <button
             className={mode === "webtoon" ? "active" : ""}
-            onClick={() => setMode("webtoon")}
+            onClick={() => setReaderMode("webtoon")}
           >
             Webtoon
           </button>
         </div>
+        <div className="reader-actions">
+          <button onClick={() => setIsImmersive((value) => !value)}>
+            {isImmersive ? "Mostrar UI" : "Modo inmersivo"}
+          </button>
+          <button onClick={toggleFullscreen} disabled={!document.fullscreenEnabled}>
+            {isFullscreen ? "Salir pantalla completa" : "Pantalla completa"}
+          </button>
+        </div>
       </div>
 
-      <p className="reader-status">
-        Pagina {currentPageIndex + 1} de {pageCount}
-        {saveState ? ` · ${saveState}` : ""}
-      </p>
+      <div className="reader-status">
+        <div className="progress-track" aria-label={`Progreso ${progressPercent}%`}>
+          <span style={{ width: `${progressPercent}%` }} />
+        </div>
+        <p>
+          Pagina {currentPageIndex + 1} de {pageCount} · {progressPercent}% · Quedan{" "}
+          {remainingPages} pagina{remainingPages === 1 ? "" : "s"}
+          {saveState ? ` · ${saveState}` : ""}
+        </p>
+      </div>
+
+      <form className="reader-jump-panel" onSubmit={handleJumpSubmit}>
+        <label>
+          Ir a página
+          <input
+            inputMode="numeric"
+            max={pageCount}
+            min="1"
+            onChange={(event) => setJumpValue(event.target.value)}
+            type="number"
+            value={jumpValue}
+          />
+        </label>
+        <button type="submit">Ir</button>
+      </form>
+
+      {isImmersive ? (
+        <div className="reader-floating-controls">
+          <button onClick={() => setIsImmersive(false)}>Mostrar UI</button>
+          <button onClick={toggleFullscreen} disabled={!document.fullscreenEnabled}>
+            {isFullscreen ? "Salir" : "Pantalla completa"}
+          </button>
+          <span>
+            {currentPageIndex + 1}/{pageCount} · {progressPercent}%
+          </span>
+        </div>
+      ) : null}
 
       {mode === "page" ? (
         <div className="page-reader">
