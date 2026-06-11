@@ -24,10 +24,12 @@ export default function App() {
 
   const mangaMatch = route.match(/^\/manga\/([^/]+)$/);
   const chapterMatch = route.match(/^\/chapter\/([^/]+)$/);
+  const uploadMatch = route.match(/^\/upload(?:\?(.*))?$/);
 
   let page = <LibraryPage onNavigate={navigate} />;
-  if (route === "/upload") {
-    page = <UploadPage onNavigate={navigate} />;
+  if (uploadMatch) {
+    const params = new URLSearchParams(uploadMatch[1] || "");
+    page = <UploadPage initialMangaId={params.get("mangaId") || ""} onNavigate={navigate} />;
   } else if (mangaMatch) {
     page = <MangaDetailPage mangaId={mangaMatch[1]} onNavigate={navigate} />;
   } else if (chapterMatch) {

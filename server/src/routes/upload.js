@@ -74,7 +74,7 @@ function summarizeImport({ manga, importedChapters, skippedChapters }) {
 
   let message = "";
   if (totalChapters > 0 && totalSkipped > 0) {
-    message = `Se importaron ${totalChapters} capítulo${totalChapters === 1 ? "" : "s"} y se omitieron ${totalSkipped} duplicado${totalSkipped === 1 ? "" : "s"}.`;
+    message = `${totalChapters} nuevo${totalChapters === 1 ? "" : "s"} importado${totalChapters === 1 ? "" : "s"}, ${totalSkipped} duplicado${totalSkipped === 1 ? "" : "s"} omitido${totalSkipped === 1 ? "" : "s"}.`;
   } else if (totalChapters === 0 && totalSkipped > 0) {
     message = `No se importaron capítulos nuevos: ${totalSkipped} ya existía${totalSkipped === 1 ? "" : "n"}.`;
   }
@@ -101,8 +101,9 @@ uploadRouter.post("/upload", upload.single("archive"), async (req, res, next) =>
   try {
     const mangaTitle = cleanTitle(req.body.mangaTitle);
     const chapterTitle = cleanTitle(req.body.chapterTitle);
+    const mangaId = cleanTitle(req.body.mangaId);
 
-    if (!mangaTitle) {
+    if (!mangaId && !mangaTitle) {
       return res.status(400).json({ error: "Manga title is required" });
     }
 
@@ -118,9 +119,13 @@ uploadRouter.post("/upload", upload.single("archive"), async (req, res, next) =>
       extractDir
     );
 
-    const existingManga = findMangaByTitle(mangaTitle);
-    const manga = getOrCreateManga(mangaTitle);
-    if (!existingManga) {
+    const existingManga = mangaId ? getManga(mangaId) : findMangaByTitle(mangaTitle);
+    if (mangaId && !existingManga) {
+      return res.status(404).json({ error: "Manga not found" });
+    }
+
+    const manga = existingManga || getOrCreateManga(mangaTitle);
+    if (!existingManga && !mangaId) {
       createdMangaId = manga.id;
     }
 

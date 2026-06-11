@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
-import { getAppConfig, uploadChapter } from "../api.js";
+import { getAppConfig, getLibrary, uploadChapter } from "../api.js";
 
-export function UploadPage({ onNavigate }) {
+export function UploadPage({ initialMangaId = "", onNavigate }) {
+  const [importMode, setImportMode] = useState(initialMangaId ? "existing" : "new");
+  const [selectedMangaId, setSelectedMangaId] = useState(initialMangaId);
+  const [mangas, setMangas] = useState([]);
   const [mangaTitle, setMangaTitle] = useState("");
   const [chapterTitle, setChapterTitle] = useState("");
   const [archive, setArchive] = useState(null);
@@ -18,24 +21,34 @@ export function UploadPage({ onNavigate }) {
     ? `${archive.name}:${archive.size}:${archive.lastModified}`
     : "";
   const submissionKey = [
+    importMode,
+    selectedMangaId,
     mangaTitle.trim().toLowerCase(),
     chapterTitle.trim().toLowerCase(),
     fileKey
   ].join("|");
   const alreadyImportedFromSelection =
     Boolean(fileKey) && importedSubmissionKey === submissionKey;
-  const submitDisabled = status.loading || alreadyImportedFromSelection;
+  const submitDisabled =
+    status.loading ||
+    alreadyImportedFromSelection ||
+    (importMode === "existing" && !selectedMangaId);
   const previewTitle = archive
     ? chapterTitle.trim() || titleFromFilename(archive.name)
     : "";
+  const selectedManga = mangas.find((manga) => manga.id === selectedMangaId);
 
   useEffect(() => {
     let alive = true;
 
-    getAppConfig()
-      .then((config) => {
+    Promise.all([getAppConfig(), getLibrary()])
+      .then(([config, library]) => {
         if (alive) {
           setAppConfig(config);
+          setMangas(library.mangas);
+          if (!selectedMangaId && library.mangas.length > 0) {
+            setSelectedMangaId(library.mangas[0].id);
+          }
         }
       })
       .catch(() => {
@@ -51,7 +64,7 @@ export function UploadPage({ onNavigate }) {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [selectedMangaId]);
 
   function formatFileSize(file) {
     if (!file) {
@@ -108,7 +121,12 @@ export function UploadPage({ onNavigate }) {
     setStatus({ loading: true, error: "", success: "" });
 
     try {
-      const result = await uploadChapter({ mangaTitle, chapterTitle, archive });
+      const result = await uploadChapter({
+        mangaId: importMode === "existing" ? selectedMangaId : "",
+        mangaTitle,
+        chapterTitle,
+        archive
+      });
       setImportedSubmissionKey(submissionKey);
 
       if ("totalChapters" in result) {
@@ -130,7 +148,7 @@ export function UploadPage({ onNavigate }) {
     <section className="page-section upload-layout">
       <div className="upload-intro">
         <p className="eyebrow">Upload local</p>
-        <h1>Importar manga</h1>
+        <h1>{importMode === "existing" ? "Subir continuación" : "Importar manga"}</h1>
         <p className="hero-copy">
           Cargá un archivo propio, el servidor lo valida y guarda capítulos o
           tomos en tu storage local.
@@ -138,18 +156,62 @@ export function UploadPage({ onNavigate }) {
       </div>
 
       <form className="upload-form" onSubmit={handleSubmit}>
-        <label>
-          Manga
-          <input
-            value={mangaTitle}
-            onChange={(event) => {
-              setMangaTitle(event.target.value);
+        <div className="mode-toggle upload-mode-toggle" aria-label="Tipo de importación">
+          <button
+            className={importMode === "new" ? "active" : ""}
+            onClick={() => {
+              setImportMode("new");
               setStatus((current) => ({ ...current, success: "" }));
             }}
-            placeholder="Ej: One-shot personal"
-            required
-          />
-        </label>
+            type="button"
+          >
+            Crear manga nuevo
+          </button>
+          <button
+            className={importMode === "existing" ? "active" : ""}
+            disabled={mangas.length === 0}
+            onClick={() => {
+              setImportMode("existing");
+              setStatus((current) => ({ ...current, success: "" }));
+            }}
+            type="button"
+          >
+            Agregar a manga existente
+          </button>
+        </div>
+
+        {importMode === "existing" ? (
+          <label>
+            Manga existente
+            <select
+              onChange={(event) => {
+                setSelectedMangaId(event.target.value);
+                setStatus((current) => ({ ...current, success: "" }));
+              }}
+              required
+              value={selectedMangaId}
+            >
+              {mangas.map((manga) => (
+                <option key={manga.id} value={manga.id}>
+                  {manga.title}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <label>
+            Manga
+            <input
+              value={mangaTitle}
+              onChange={(event) => {
+                setMangaTitle(event.target.value);
+                setStatus((current) => ({ ...current, success: "" }));
+              }}
+              placeholder="Ej: One-shot personal"
+              required
+            />
+          </label>
+        )}
 
         <label>
           Título base (opcional)
@@ -184,6 +246,9 @@ export function UploadPage({ onNavigate }) {
           {appConfig.upload.maxUploadMb} MB
         </p>
         {archive ? <p className="file-summary">{formatFileSize(archive)}</p> : null}
+        {importMode === "existing" && selectedManga ? (
+          <p className="form-help">Se agregará a: {selectedManga.title}.</p>
+        ) : null}
         {previewTitle ? (
           <p className="form-help">
             Se importará como: {previewTitle}. Si es un pack, se usarán los nombres de los archivos internos.

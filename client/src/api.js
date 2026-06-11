@@ -87,9 +87,13 @@ export function saveProgress(chapterId, payload) {
   });
 }
 
-export function uploadChapter({ mangaTitle, chapterTitle, archive }) {
+export function uploadChapter({ mangaId, mangaTitle, chapterTitle, archive }) {
   const formData = new FormData();
-  formData.append("mangaTitle", mangaTitle);
+  if (mangaId) {
+    formData.append("mangaId", mangaId);
+  } else {
+    formData.append("mangaTitle", mangaTitle);
+  }
   formData.append("chapterTitle", chapterTitle);
   formData.append("archive", archive);
 

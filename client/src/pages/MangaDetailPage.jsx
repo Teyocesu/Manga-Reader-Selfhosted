@@ -172,6 +172,12 @@ export function MangaDetailPage({ mangaId, onNavigate }) {
             <button type="submit">Guardar título</button>
           </form>
           <div className="detail-actions">
+            <button
+              className="primary-button"
+              onClick={() => onNavigate(`/upload?mangaId=${state.manga.id}`)}
+            >
+              Subir continuación
+            </button>
             <button className="danger-button" onClick={handleDeleteManga}>
               Borrar manga
             </button>

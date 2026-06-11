@@ -59,7 +59,8 @@ button:disabled {
   transform: none;
 }
 
-input {
+input,
+select {
   width: 100%;
   min-height: 48px;
   border: 1px solid rgba(255, 255, 255, 0.14);
@@ -70,7 +71,8 @@ input {
   outline: none;
 }
 
-input:focus {
+input:focus,
+select:focus {
   border-color: #14b8a6;
   box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.18);
 }
@@ -515,6 +517,10 @@ h2 {
 .mode-toggle .active {
   background: #14b8a6;
   color: #031614;
+}
+
+.upload-mode-toggle {
+  grid-template-columns: 1fr 1fr;
 }
 
 .reader-actions {
