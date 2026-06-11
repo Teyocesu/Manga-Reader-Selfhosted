@@ -337,6 +337,17 @@ h2 {
   grid-template-columns: 1fr;
 }
 
+.access-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+}
+
+.access-panel {
+  width: min(100%, 520px);
+  text-align: center;
+}
+
 .upload-intro {
   text-align: center;
 }

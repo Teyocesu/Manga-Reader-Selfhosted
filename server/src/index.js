@@ -3,6 +3,7 @@ import cors from "cors";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { config } from "./config.js";
+import { authRouter, requireAuth } from "./auth.js";
 import { libraryRouter } from "./routes/library.js";
 import { pagesRouter } from "./routes/pages.js";
 import { progressRouter } from "./routes/progress.js";
@@ -15,12 +16,21 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "../..");
 const clientDistDir = path.join(rootDir, "client", "dist");
 
-app.use(cors());
+if (process.env.NODE_ENV === "production" && !config.appPassword) {
+  console.warn(
+    "WARNING: NODE_ENV=production without APP_PASSWORD. Set APP_PASSWORD before exposing this app online."
+  );
+}
+
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", app: "manga-reader-selfhosted" });
 });
+
+app.use("/api", authRouter);
+app.use("/api", requireAuth);
 
 app.get("/api/config", (_req, res) => {
   res.json({

@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { AppHeader } from "./components/AppHeader.jsx";
+import { getAuthStatus } from "./api.js";
+import { AccessPage } from "./pages/AccessPage.jsx";
 import { LibraryPage } from "./pages/LibraryPage.jsx";
 import { MangaDetailPage } from "./pages/MangaDetailPage.jsx";
 import { ReaderPage } from "./pages/ReaderPage.jsx";
@@ -15,12 +17,47 @@ function navigate(path) {
 
 export default function App() {
   const [route, setRoute] = useState(getRoute);
+  const [authState, setAuthState] = useState({
+    loading: true,
+    requiresPassword: false,
+    authenticated: false
+  });
 
   useEffect(() => {
     const handleHashChange = () => setRoute(getRoute());
     window.addEventListener("hashchange", handleHashChange);
     return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
+
+  useEffect(() => {
+    getAuthStatus()
+      .then((status) => setAuthState({ loading: false, ...status }))
+      .catch(() => {
+        setAuthState({
+          loading: false,
+          requiresPassword: true,
+          authenticated: false
+        });
+      });
+  }, []);
+
+  if (authState.loading) {
+    return <p className="status-card">Cargando acceso...</p>;
+  }
+
+  if (authState.requiresPassword && !authState.authenticated) {
+    return (
+      <AccessPage
+        onAuthenticated={() => {
+          setAuthState({
+            loading: false,
+            requiresPassword: true,
+            authenticated: true
+          });
+        }}
+      />
+    );
+  }
 
   const mangaMatch = route.match(/^\/manga\/([^/]+)$/);
   const chapterMatch = route.match(/^\/chapter\/([^/]+)$/);

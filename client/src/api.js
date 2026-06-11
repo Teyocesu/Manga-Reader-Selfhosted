@@ -1,11 +1,16 @@
 const apiBase =
   import.meta.env.VITE_API_BASE_URL ||
-  `${window.location.protocol}//${window.location.hostname}:3001/api`;
+  (import.meta.env.PROD
+    ? `${window.location.origin}/api`
+    : `${window.location.protocol}//${window.location.hostname}:3001/api`);
 
 async function request(path, options = {}) {
   let response;
   try {
-    response = await fetch(`${apiBase}${path}`, options);
+    response = await fetch(`${apiBase}${path}`, {
+      credentials: "include",
+      ...options
+    });
   } catch {
     throw new Error("No se pudo conectar con el servidor. Revisá que el backend esté corriendo.");
   }
@@ -27,6 +32,20 @@ export function imageUrl(path) {
 
 export function getLibrary() {
   return request("/library");
+}
+
+export function getAuthStatus() {
+  return request("/auth/status");
+}
+
+export function login(password) {
+  return request("/auth/login", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ password })
+  });
 }
 
 export function getAppConfig() {

@@ -1,10 +1,11 @@
 import { mkdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { config } from "./config.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const rootDir = path.resolve(__dirname, "../..");
-export const storageDir = path.join(rootDir, "storage");
+export const storageDir = config.storageDir;
 export const tempDir = path.join(storageDir, ".tmp");
 export const libraryDir = path.join(storageDir, "library");
 export const thumbnailsDir = path.join(storageDir, "thumbnails");

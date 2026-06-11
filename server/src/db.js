@@ -1,19 +1,15 @@
 import { mkdirSync } from "node:fs";
 import { randomUUID } from "node:crypto";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
+import { config } from "./config.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const rootDir = path.resolve(__dirname, "../..");
-const dataDir = path.join(rootDir, "data");
-const dbPath = path.join(dataDir, "manga-reader.sqlite");
+const dbPath = `${config.dataDir}/manga-reader.sqlite`;
 const collator = new Intl.Collator(undefined, {
   numeric: true,
   sensitivity: "base"
 });
 
-mkdirSync(dataDir, { recursive: true });
+mkdirSync(config.dataDir, { recursive: true });
 
 export const db = new DatabaseSync(dbPath);
 db.exec("PRAGMA foreign_keys = ON;");
