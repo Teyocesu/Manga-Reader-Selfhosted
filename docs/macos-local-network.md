@@ -19,6 +19,8 @@ Formatos soportados para upload local:
 - `.rar`
 - `.cbr`
 
+Los archivos pueden contener imagenes directamente o un unico archive interno soportado, por ejemplo un `.rar` con un `.cbr` adentro.
+
 ## 2. Obtener la IP local de la Mac
 
 En macOS, abrir Terminal y ejecutar:

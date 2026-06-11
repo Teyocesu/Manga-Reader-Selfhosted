@@ -25,3 +25,20 @@ rar a -ep /tmp/manga-reader-fixture/chapter.cbr /tmp/manga-reader-fixture/pages/
 Subir `chapter.cbr` desde la pantalla `Subir`.
 
 El lector tambien acepta `.rar`; `.cbr` se trata como un archivo RAR con extension de comic.
+
+## Archive anidado
+
+La app soporta un solo nivel de archive anidado. Ejemplos validos:
+
+- `.rar` con un `.cbr` adentro.
+- `.zip` con un `.cbz` adentro.
+- `.rar` con un `.zip` adentro.
+- `.zip` con un `.rar` adentro.
+
+Para crear un fixture local `.zip` con `.cbz` adentro:
+
+```bash
+zip -j /tmp/manga-reader-fixture/nested.zip /tmp/manga-reader-fixture/chapter.cbz
+```
+
+Si hay varios archives internos, extrae uno y subilo por separado. Si hay imagenes y archives internos mezclados, el upload se rechaza con un error claro.

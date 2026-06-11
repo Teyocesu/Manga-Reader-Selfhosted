@@ -1,5 +1,5 @@
 import { createWriteStream } from "node:fs";
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import { createExtractorFromData } from "node-unrar-js";
@@ -16,6 +16,10 @@ const allowedImageTypes = new Map([
 
 const maxPages = config.maxImagesPerChapter;
 const maxUncompressedBytes = maxUploadBytes;
+const nestedArchiveMessage =
+  "This archive contains another comic archive inside. Extract it or upload the inner .cbr/.cbz directly.";
+const multipleNestedArchiveMessage =
+  "Archive contains multiple nested archives. Please extract one and upload it.";
 const collator = new Intl.Collator(undefined, {
   numeric: true,
   sensitivity: "base"
@@ -25,6 +29,12 @@ function userInputError(message) {
   const error = new Error(message);
   error.statusCode = 400;
   return error;
+}
+
+function logArchive(message) {
+  if (process.env.NODE_ENV !== "production") {
+    console.info(`[archive] ${message}`);
+  }
 }
 
 function isSupportedArchive(filename) {
@@ -105,7 +115,7 @@ export function validateArchiveFilename(filename) {
   }
 }
 
-function validateDiscoveredPage(discovered, entryName, ext, mimeType, size) {
+function validateImageCandidate(images, entryName, mimeType, size) {
   if (!mimeType) {
     throw userInputError(`Unsupported file in archive: ${entryName}`);
   }
@@ -114,8 +124,90 @@ function validateDiscoveredPage(discovered, entryName, ext, mimeType, size) {
     throw userInputError(`Empty image in archive: ${entryName}`);
   }
 
-  if (discovered.length >= maxPages) {
+  if (images.length >= maxPages) {
     throw userInputError(`Archive exceeds ${maxPages} pages`);
+  }
+}
+
+function validateNestedArchiveCandidate(entryName, size) {
+  if (size === 0) {
+    throw userInputError(`Empty nested archive in archive: ${entryName}`);
+  }
+
+  if (size > maxUploadBytes) {
+    throw userInputError("Archive is too large after extraction");
+  }
+}
+
+function classifyEntries(entries) {
+  const images = [];
+  const nestedArchives = [];
+  let totalImageBytes = 0;
+
+  for (const entry of entries) {
+    assertSafeEntryName(entry.name);
+
+    if (entry.directory || isSkippableMetadata(entry.name)) {
+      continue;
+    }
+
+    if (entry.encrypted) {
+      throw userInputError(`Encrypted files are not supported: ${entry.name}`);
+    }
+
+    const ext = path.extname(entry.name).toLowerCase();
+    const mimeType = allowedImageTypes.get(ext);
+
+    if (mimeType) {
+      totalImageBytes += entry.size || 0;
+      if (totalImageBytes > maxUncompressedBytes) {
+        throw userInputError("Archive is too large after extraction");
+      }
+
+      validateImageCandidate(images, entry.name, mimeType, entry.size || 0);
+      images.push({
+        originalPath: entry.name,
+        extension: ext,
+        mimeType
+      });
+      continue;
+    }
+
+    if (isSupportedArchive(entry.name)) {
+      validateNestedArchiveCandidate(entry.name, entry.size || 0);
+      nestedArchives.push({
+        originalPath: entry.name,
+        extension: ext
+      });
+      continue;
+    }
+
+    throw userInputError(`Unsupported file in archive: ${entry.name}`);
+  }
+
+  images.sort((a, b) => collator.compare(a.originalPath, b.originalPath));
+  nestedArchives.sort((a, b) => collator.compare(a.originalPath, b.originalPath));
+
+  return { images, nestedArchives };
+}
+
+function assertExtractionPlan({ images, nestedArchives }, depth) {
+  if (images.length > 0 && nestedArchives.length > 0) {
+    throw userInputError(
+      "Archive contains images and nested archives. Remove the nested archive or upload it directly."
+    );
+  }
+
+  if (nestedArchives.length > 1) {
+    throw userInputError(multipleNestedArchiveMessage);
+  }
+
+  if (nestedArchives.length === 1 && depth >= 1) {
+    throw userInputError(nestedArchiveMessage);
+  }
+
+  if (images.length === 0 && nestedArchives.length === 0) {
+    throw userInputError("Archive has no supported images");
   }
 }
 
@@ -129,7 +221,7 @@ function finalizeDiscoveredPages(discovered) {
   return discovered;
 }
 
-async function extractZipArchive(filePath, outputDir) {
+async function listZipEntries(filePath) {
   let zipfile;
   try {
     zipfile = await openZip(filePath);
@@ -137,8 +229,39 @@ async function extractZipArchive(filePath, outputDir) {
     throw userInputError("Archive is corrupt or not a valid zip/cbz file");
   }
 
-  const discovered = [];
-  let totalBytes = 0;
+  try {
+    return await new Promise((resolve, reject) => {
+      const entries = [];
+      zipfile.readEntry();
+
+      zipfile.on("entry", (entry) => {
+        entries.push({
+          name: entry.fileName,
+          size: entry.uncompressedSize || 0,
+          directory: /\/$/.test(entry.fileName),
+          encrypted: Boolean(entry.generalPurposeBitFlag & 0x1)
+        });
+        zipfile.readEntry();
+      });
+
+      zipfile.once("end", () => resolve(entries));
+      zipfile.once("error", reject);
+    });
+  } finally {
+    zipfile.close();
+  }
+}
+
+async function extractZipTargets(filePath, targets) {
+  let zipfile;
+  try {
+    zipfile = await openZip(filePath);
+  } catch {
+    throw userInputError("Archive is corrupt or not a valid zip/cbz file");
+  }
+
+  const targetsByName = new Map(targets.map((target) => [target.originalPath, target]));
+  let written = 0;
 
   try {
     await new Promise((resolve, reject) => {
@@ -146,46 +269,21 @@ async function extractZipArchive(filePath, outputDir) {
 
       zipfile.on("entry", async (entry) => {
         try {
-          const entryName = entry.fileName;
-          assertSafeEntryName(entryName);
-
-          if (/\/$/.test(entryName) || isSkippableMetadata(entryName)) {
+          const target = targetsByName.get(entry.fileName);
+          if (!target) {
             zipfile.readEntry();
             return;
           }
 
-          const ext = path.extname(entryName).toLowerCase();
-          const mimeType = allowedImageTypes.get(ext);
-          totalBytes += entry.uncompressedSize || 0;
-          if (totalBytes > maxUncompressedBytes) {
-            throw userInputError("Archive is too large after extraction");
-          }
-
-          validateDiscoveredPage(
-            discovered,
-            entryName,
-            ext,
-            mimeType,
-            entry.uncompressedSize || 0
-          );
-
-          const tempName = `${String(discovered.length + 1).padStart(4, "0")}${ext}`;
-          const tempPath = path.join(outputDir, tempName);
           const readStream = await readEntry(zipfile, entry);
-          await pipeline(readStream, createWriteStream(tempPath));
+          await pipeline(readStream, createWriteStream(target.tempPath));
 
-          const fileInfo = await stat(tempPath);
+          const fileInfo = await stat(target.tempPath);
           if (fileInfo.size === 0) {
-            throw userInputError(`Empty image in archive: ${entryName}`);
+            throw userInputError(`Empty file in archive: ${entry.fileName}`);
           }
 
-          discovered.push({
-            originalPath: entryName,
-            tempPath,
-            extension: ext,
-            mimeType
-          });
-
+          written += 1;
           zipfile.readEntry();
         } catch (error) {
           reject(error);
@@ -199,7 +297,44 @@ async function extractZipArchive(filePath, outputDir) {
     zipfile.close();
   }
 
-  return finalizeDiscoveredPages(discovered);
+  if (written !== targets.length) {
+    throw userInputError("Archive is corrupt or missing expected files");
+  }
+}
+
+async function extractZipImages(filePath, outputDir, images) {
+  const targets = images.map((image, index) => ({
+    ...image,
+    tempPath: path.join(outputDir, `${String(index + 1).padStart(4, "0")}${image.extension}`)
+  }));
+
+  await extractZipTargets(filePath, targets);
+
+  return finalizeDiscoveredPages(targets);
+}
+
+async function extractNestedZipArchive(filePath, outputDir, nestedArchive, depth) {
+  const nestedPath = path.join(outputDir, `__nested-${depth + 1}${nestedArchive.extension}`);
+  await extractZipTargets(filePath, [{ ...nestedArchive, tempPath: nestedPath }]);
+
+  try {
+    return await extractArchive(nestedPath, nestedArchive.originalPath, outputDir, depth + 1);
+  } finally {
+    await rm(nestedPath, { force: true });
+  }
+}
+
+async function extractZipArchive(filePath, originalFilename, outputDir, depth) {
+  const entries = await listZipEntries(filePath);
+  const plan = classifyEntries(entries);
+  assertExtractionPlan(plan, depth);
+
+  if (plan.nestedArchives.length === 1) {
+    logArchive(`Processing nested archive ${plan.nestedArchives[0].originalPath}`);
+    return extractNestedZipArchive(filePath, outputDir, plan.nestedArchives[0], depth);
+  }
+
+  return extractZipImages(filePath, outputDir, plan.images);
 }
 
 async function createRarExtractor(filePath) {
@@ -220,55 +355,33 @@ function asRarUserError(error) {
   return userInputError("Archive is corrupt or not a valid rar/cbr file");
 }
 
-async function extractRarArchive(filePath, outputDir) {
-  const listExtractor = await createRarExtractor(filePath);
+async function listRarEntries(filePath) {
+  const extractor = await createRarExtractor(filePath);
+
   try {
-    const list = listExtractor.getFileList();
+    const list = extractor.getFileList();
 
     if (list.arcHeader.flags.volume) {
       throw userInputError("Multi-volume RAR archives are not supported");
     }
 
-    const headers = [...list.fileHeaders];
-    const selectedHeaders = [];
-    let totalBytes = 0;
+    return [...list.fileHeaders].map((header) => ({
+      name: header.name,
+      size: header.unpSize || 0,
+      directory: Boolean(header.flags.directory),
+      encrypted: Boolean(header.flags.encrypted)
+    }));
+  } catch (error) {
+    throw asRarUserError(error);
+  }
+}
 
-    for (const header of headers) {
-      const entryName = header.name;
-      assertSafeEntryName(entryName);
+async function extractRarFiles(filePath, targets) {
+  const extractor = await createRarExtractor(filePath);
 
-      if (header.flags.directory || isSkippableMetadata(entryName)) {
-        continue;
-      }
-
-      if (header.flags.encrypted) {
-        throw userInputError(`Encrypted files are not supported: ${entryName}`);
-      }
-
-      const ext = path.extname(entryName).toLowerCase();
-      const mimeType = allowedImageTypes.get(ext);
-      totalBytes += header.unpSize || 0;
-      if (totalBytes > maxUncompressedBytes) {
-        throw userInputError("Archive is too large after extraction");
-      }
-
-      validateDiscoveredPage(selectedHeaders, entryName, ext, mimeType, header.unpSize || 0);
-      selectedHeaders.push({
-        originalPath: entryName,
-        extension: ext,
-        mimeType
-      });
-    }
-
-    selectedHeaders.sort((a, b) => collator.compare(a.originalPath, b.originalPath));
-
-    if (selectedHeaders.length === 0) {
-      throw userInputError("Archive has no supported images");
-    }
-
-    const extractExtractor = await createRarExtractor(filePath);
-    const extracted = extractExtractor.extract({
-      files: selectedHeaders.map((header) => header.originalPath)
+  try {
+    const extracted = extractor.extract({
+      files: targets.map((target) => target.originalPath)
     });
     const extractedFiles = [...extracted.files];
     const extractedByName = new Map();
@@ -281,39 +394,70 @@ async function extractRarArchive(filePath, outputDir) {
       extractedByName.set(file.fileHeader.name, file.extraction);
     }
 
-    const discovered = [];
-    for (const [index, header] of selectedHeaders.entries()) {
-      const bytes = extractedByName.get(header.originalPath);
+    for (const target of targets) {
+      const bytes = extractedByName.get(target.originalPath);
       if (!bytes || bytes.byteLength === 0) {
-        throw userInputError(`Empty image in archive: ${header.originalPath}`);
+        throw userInputError(`Empty file in archive: ${target.originalPath}`);
       }
 
-      const tempName = `${String(index + 1).padStart(4, "0")}${header.extension}`;
-      const tempPath = path.join(outputDir, tempName);
-      await writeFile(tempPath, Buffer.from(bytes));
-
-      discovered.push({
-        originalPath: header.originalPath,
-        tempPath,
-        extension: header.extension,
-        mimeType: header.mimeType
-      });
+      await writeFile(target.tempPath, Buffer.from(bytes));
     }
-
-    return finalizeDiscoveredPages(discovered);
   } catch (error) {
     throw asRarUserError(error);
   }
 }
 
-export async function extractArchive(filePath, originalFilename, outputDir) {
+async function extractRarImages(filePath, outputDir, images) {
+  const targets = images.map((image, index) => ({
+    ...image,
+    tempPath: path.join(outputDir, `${String(index + 1).padStart(4, "0")}${image.extension}`)
+  }));
+
+  await extractRarFiles(filePath, targets);
+
+  return finalizeDiscoveredPages(targets);
+}
+
+async function extractNestedRarArchive(filePath, outputDir, nestedArchive, depth) {
+  const nestedPath = path.join(outputDir, `__nested-${depth + 1}${nestedArchive.extension}`);
+  await extractRarFiles(filePath, [{ ...nestedArchive, tempPath: nestedPath }]);
+
+  try {
+    return await extractArchive(nestedPath, nestedArchive.originalPath, outputDir, depth + 1);
+  } finally {
+    await rm(nestedPath, { force: true });
+  }
+}
+
+async function extractRarArchive(filePath, originalFilename, outputDir, depth) {
+  try {
+    const entries = await listRarEntries(filePath);
+    const plan = classifyEntries(entries);
+    assertExtractionPlan(plan, depth);
+
+    if (plan.nestedArchives.length === 1) {
+      logArchive(`Processing nested archive ${plan.nestedArchives[0].originalPath}`);
+      return extractNestedRarArchive(filePath, outputDir, plan.nestedArchives[0], depth);
+    }
+
+    return extractRarImages(filePath, outputDir, plan.images);
+  } catch (error) {
+    throw asRarUserError(error);
+  }
+}
+
+export async function extractArchive(filePath, originalFilename, outputDir, depth = 0) {
   const archiveKind = getArchiveKind(originalFilename);
   validateArchiveFilename(originalFilename);
   await mkdir(outputDir, { recursive: true });
 
+  logArchive(
+    `${depth === 0 ? "Processing outer archive" : "Processing inner archive"} ${originalFilename}`
+  );
+
   if (archiveKind === "rar") {
-    return extractRarArchive(filePath, outputDir);
+    return extractRarArchive(filePath, originalFilename, outputDir, depth);
   }
 
-  return extractZipArchive(filePath, outputDir);
+  return extractZipArchive(filePath, originalFilename, outputDir, depth);
 }
