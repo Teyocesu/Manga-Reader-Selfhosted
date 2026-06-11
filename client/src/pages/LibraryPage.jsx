@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getLibrary } from "../api.js";
+import { getLibrary, imageUrl } from "../api.js";
 
 export function LibraryPage({ onNavigate }) {
   const [state, setState] = useState({
@@ -66,7 +66,16 @@ export function LibraryPage({ onNavigate }) {
           {state.mangas.map((manga) => (
             <article className="manga-card" key={manga.id}>
               <button className="cover-button" onClick={() => onNavigate(`/manga/${manga.id}`)}>
-                <span className="cover-placeholder">{manga.title.slice(0, 2).toUpperCase()}</span>
+                {manga.thumbnailUrl ? (
+                  <img
+                    alt={`Portada de ${manga.title}`}
+                    className="cover-image"
+                    loading="lazy"
+                    src={imageUrl(manga.thumbnailUrl)}
+                  />
+                ) : (
+                  <span className="cover-placeholder">{manga.title.slice(0, 2).toUpperCase()}</span>
+                )}
               </button>
               <div className="manga-card-body">
                 <h2>{manga.title}</h2>

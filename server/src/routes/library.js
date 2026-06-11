@@ -1,5 +1,7 @@
 import { Router } from "express";
-import { getChapter, getManga, listLibrary } from "../db.js";
+import { access } from "node:fs/promises";
+import { getChapter, getManga, getMangaThumbnail, listLibrary } from "../db.js";
+import { resolveStoragePath } from "../storage.js";
 
 export const libraryRouter = Router();
 
@@ -14,6 +16,27 @@ libraryRouter.get("/mangas/:mangaId", (req, res) => {
   }
 
   res.json(manga);
+});
+
+libraryRouter.get("/mangas/:mangaId/thumbnail", async (req, res, next) => {
+  try {
+    const thumbnail = getMangaThumbnail(req.params.mangaId);
+    if (!thumbnail) {
+      return res.status(404).json({ error: "Thumbnail not found" });
+    }
+
+    const thumbnailPath = resolveStoragePath(thumbnail.storagePath);
+    await access(thumbnailPath);
+
+    res.type("image/webp");
+    res.sendFile(thumbnailPath);
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return res.status(404).json({ error: "Thumbnail file not found" });
+    }
+
+    next(error);
+  }
 });
 
 libraryRouter.get("/chapters/:chapterId", (req, res) => {

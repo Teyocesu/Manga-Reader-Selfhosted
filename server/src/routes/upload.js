@@ -10,21 +10,25 @@ import {
 } from "../archive.js";
 import { config, maxUploadBytes } from "../config.js";
 import {
+  clearMangaThumbnailPath,
   createImportedChapter,
   deleteChapters,
   deleteMangaIfEmpty,
   findChapterByTitle,
   findMangaByTitle,
   getManga,
-  getOrCreateManga
+  getOrCreateManga,
+  setMangaThumbnailPath
 } from "../db.js";
 import {
   ensureStorageDirs,
   libraryDir,
   relativeStoragePath,
+  resolveStoragePath,
   removeQuietly,
   tempDir
 } from "../storage.js";
+import { createMangaThumbnail, selectRepresentativePage } from "../thumbnails.js";
 
 await ensureStorageDirs();
 
@@ -89,6 +93,8 @@ function summarizeImport({ manga, importedChapters, skippedChapters }) {
 uploadRouter.post("/upload", upload.single("archive"), async (req, res, next) => {
   let extractDir;
   let createdMangaId = null;
+  let createdThumbnailPath = null;
+  let thumbnailMangaId = null;
   const chapterDirs = [];
   const createdChapterIds = [];
 
@@ -116,6 +122,24 @@ uploadRouter.post("/upload", upload.single("archive"), async (req, res, next) =>
     const manga = getOrCreateManga(mangaTitle);
     if (!existingManga) {
       createdMangaId = manga.id;
+    }
+
+    if (!manga.thumbnailPath) {
+      const representativePage = selectRepresentativePage(extractedChapters);
+      if (representativePage) {
+        try {
+          createdThumbnailPath = await createMangaThumbnail({
+            mangaId: manga.id,
+            sourcePath: representativePage.tempPath
+          });
+          thumbnailMangaId = manga.id;
+          setMangaThumbnailPath(manga.id, createdThumbnailPath);
+        } catch (error) {
+          if (process.env.NODE_ENV !== "production") {
+            console.warn(`[thumbnail] Could not generate thumbnail: ${error.message}`);
+          }
+        }
+      }
     }
 
     const importedChapters = [];
@@ -181,11 +205,17 @@ uploadRouter.post("/upload", upload.single("archive"), async (req, res, next) =>
       if (createdMangaId) {
         deleteMangaIfEmpty(createdMangaId);
       }
+      if (createdThumbnailPath && thumbnailMangaId) {
+        clearMangaThumbnailPath(thumbnailMangaId, createdThumbnailPath);
+      }
     } catch {
       // Keep the original upload error; storage cleanup still runs below.
     }
 
     await Promise.all(chapterDirs.map((chapterDir) => removeQuietly(chapterDir)));
+    if (createdThumbnailPath) {
+      await removeQuietly(resolveStoragePath(createdThumbnailPath));
+    }
     next(error);
   } finally {
     await removeQuietly(extractDir);

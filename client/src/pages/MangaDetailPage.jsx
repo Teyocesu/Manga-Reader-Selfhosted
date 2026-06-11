@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getManga } from "../api.js";
+import { getManga, imageUrl } from "../api.js";
 
 export function MangaDetailPage({ mangaId, onNavigate }) {
   const [state, setState] = useState({
@@ -43,7 +43,15 @@ export function MangaDetailPage({ mangaId, onNavigate }) {
       </button>
       <div className="manga-detail-hero">
         <div className="detail-cover">
-          {state.manga.title.slice(0, 2).toUpperCase()}
+          {state.manga.thumbnailUrl ? (
+            <img
+              alt={`Portada de ${state.manga.title}`}
+              className="detail-cover-image"
+              src={imageUrl(state.manga.thumbnailUrl)}
+            />
+          ) : (
+            state.manga.title.slice(0, 2).toUpperCase()
+          )}
         </div>
         <div>
           <p className="eyebrow">Manga</p>

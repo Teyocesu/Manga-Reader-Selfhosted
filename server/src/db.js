@@ -19,6 +19,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS mangas (
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
+    thumbnail_path TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
@@ -55,10 +56,20 @@ db.exec(`
   );
 `);
 
+try {
+  db.exec("ALTER TABLE mangas ADD COLUMN thumbnail_path TEXT;");
+} catch (error) {
+  if (!String(error.message).includes("duplicate column name")) {
+    throw error;
+  }
+}
+
 function rowToManga(row) {
   return {
     id: row.id,
     title: row.title,
+    thumbnailPath: row.thumbnail_path ?? null,
+    thumbnailUrl: row.thumbnail_path ? `/api/mangas/${row.id}/thumbnail` : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     chapterCount: row.chapter_count ?? 0,
@@ -358,6 +369,45 @@ export function deleteMangaIfEmpty(mangaId) {
         WHERE manga_id = ?
       )
   `).run(mangaId, mangaId);
+}
+
+export function setMangaThumbnailPath(mangaId, thumbnailPath) {
+  const updatedAt = now();
+  db.prepare(`
+    UPDATE mangas
+    SET thumbnail_path = ?,
+        updated_at = ?
+    WHERE id = ?
+      AND thumbnail_path IS NULL
+  `).run(thumbnailPath, updatedAt, mangaId);
+
+  return getManga(mangaId);
+}
+
+export function clearMangaThumbnailPath(mangaId, thumbnailPath) {
+  db.prepare(`
+    UPDATE mangas
+    SET thumbnail_path = NULL
+    WHERE id = ?
+      AND thumbnail_path = ?
+  `).run(mangaId, thumbnailPath);
+}
+
+export function getMangaThumbnail(mangaId) {
+  const row = db.prepare(`
+    SELECT id, thumbnail_path
+    FROM mangas
+    WHERE id = ?
+  `).get(mangaId);
+
+  if (!row?.thumbnail_path) {
+    return null;
+  }
+
+  return {
+    mangaId: row.id,
+    storagePath: row.thumbnail_path
+  };
 }
 
 export function findChapterByTitle(mangaId, title) {

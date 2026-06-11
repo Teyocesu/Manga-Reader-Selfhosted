@@ -77,6 +77,7 @@ El lector incluye modo inmersivo, pantalla completa si el navegador lo permite, 
 
 - Base de datos: `data/manga-reader.sqlite`
 - Imagenes extraidas: `storage/library/`
+- Miniaturas generadas: `storage/thumbnails/`
 - Temporales de upload/extraccion: `storage/.tmp/`
 
 `data/` y `storage/` no se versionan, salvo sus `.gitkeep`.
@@ -86,6 +87,7 @@ El lector incluye modo inmersivo, pantalla completa si el navegador lo permite, 
 - Subida de archivos `.zip`, `.cbz`, `.rar` y `.cbr` propios.
 - Extraccion local de imagenes en `storage/`.
 - Metadata y progreso en SQLite dentro de `data/`.
+- Miniaturas automaticas desde archivos locales subidos, sin busquedas online.
 - Biblioteca, detalle de manga/capitulo y lector con modo pagina/webtoon.
 - Acceso desde celular en la misma red local.
 

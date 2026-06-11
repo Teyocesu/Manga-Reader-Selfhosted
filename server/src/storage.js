@@ -7,10 +7,12 @@ export const rootDir = path.resolve(__dirname, "../..");
 export const storageDir = path.join(rootDir, "storage");
 export const tempDir = path.join(storageDir, ".tmp");
 export const libraryDir = path.join(storageDir, "library");
+export const thumbnailsDir = path.join(storageDir, "thumbnails");
 
 export async function ensureStorageDirs() {
   await mkdir(tempDir, { recursive: true });
   await mkdir(libraryDir, { recursive: true });
+  await mkdir(thumbnailsDir, { recursive: true });
 }
 
 export function relativeStoragePath(absolutePath) {
