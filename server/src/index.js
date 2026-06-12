@@ -29,6 +29,7 @@ app.use(helmet({
       "img-src": ["'self'", "data:"]
     }
   },
+  crossOriginResourcePolicy: { policy: "same-site" },
   crossOriginEmbedderPolicy: false
 }));
 app.use(cors({ origin: true, credentials: true }));

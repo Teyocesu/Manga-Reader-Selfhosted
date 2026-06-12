@@ -386,8 +386,12 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
                 alt={`Página ${currentPageIndex + 1}`}
                 onError={() => markPageFailed(currentPage.id)}
               />
+            ) : currentPageFailed ? (
+              <p className="missing-page">
+                No se pudo cargar el archivo de esta página desde storage.
+              </p>
             ) : (
-              <p className="missing-page">No hay imagen para esta página.</p>
+              <p className="missing-page">Este capítulo no tiene páginas registradas.</p>
             )}
             <div className="tap-zones" aria-label="Controles táctiles">
               <button
@@ -428,7 +432,9 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
               }}
             >
               {failedPageIds.has(page.id) ? (
-                <p className="missing-page">No se pudo cargar la página {index + 1}.</p>
+                <p className="missing-page">
+                  No se pudo cargar el archivo de la página {index + 1} desde storage.
+                </p>
               ) : (
                 <img
                   alt={`Página ${index + 1}`}
