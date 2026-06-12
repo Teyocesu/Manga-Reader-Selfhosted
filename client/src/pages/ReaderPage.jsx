@@ -1,16 +1,27 @@
 import { useEffect, useRef, useState } from "react";
 import { getChapter, imageUrl, saveProgress } from "../api.js";
 
+const READER_MODE_KEY = "manga-reader.reader-mode";
+const READER_IMMERSIVE_KEY = "manga-reader.reader-immersive";
+
+function loadPreferredMode() {
+  return window.localStorage.getItem(READER_MODE_KEY) === "webtoon" ? "webtoon" : "page";
+}
+
+function loadPreferredImmersive() {
+  return window.localStorage.getItem(READER_IMMERSIVE_KEY) === "1";
+}
+
 export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }) {
   const [state, setState] = useState({
     loading: true,
     error: "",
     data: null
   });
-  const [mode, setMode] = useState("page");
+  const [mode, setMode] = useState(loadPreferredMode);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [jumpValue, setJumpValue] = useState("1");
-  const [isImmersive, setIsImmersive] = useState(false);
+  const [isImmersive, setIsImmersive] = useState(loadPreferredImmersive);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [saveState, setSaveState] = useState("");
   const imageRefs = useRef([]);
@@ -32,7 +43,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
         const savedIndex = startFromBeginning ? 0 : data.progress?.currentPageIndex ?? 0;
         const safeIndex = Math.min(Math.max(savedIndex, 0), Math.max(pageCount - 1, 0));
         setState({ loading: false, error: "", data });
-        setMode(data.progress?.mode || "page");
+        setMode(data.progress?.mode || loadPreferredMode());
         setCurrentPageIndex(safeIndex);
         setJumpValue(String(safeIndex + 1));
         window.setTimeout(() => {
@@ -53,6 +64,14 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
   useEffect(() => {
     setJumpValue(String(currentPageIndex + 1));
   }, [currentPageIndex]);
+
+  useEffect(() => {
+    window.localStorage.setItem(READER_MODE_KEY, mode);
+  }, [mode]);
+
+  useEffect(() => {
+    window.localStorage.setItem(READER_IMMERSIVE_KEY, isImmersive ? "1" : "0");
+  }, [isImmersive]);
 
   useEffect(() => {
     if (!readyRef.current || !state.data) {
