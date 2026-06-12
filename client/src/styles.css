@@ -719,7 +719,7 @@ h2 {
 }
 
 .reader-page {
-  --reader-page-max-height: 78vh;
+  --reader-page-max-height: min(78dvh, calc(100dvh - 24px));
   width: min(100%, 1280px);
   margin: 0 auto;
   padding-bottom: env(safe-area-inset-bottom);
@@ -953,7 +953,7 @@ h2 {
 }
 
 .page-reader {
-  min-height: calc(100vh - 178px);
+  min-height: calc(100dvh - 178px);
   display: grid;
   grid-template-columns: minmax(104px, 136px) minmax(0, 1fr) minmax(104px, 136px);
   gap: 12px;
@@ -966,7 +966,7 @@ h2 {
 
 .page-frame {
   position: relative;
-  min-height: 68vh;
+  min-height: min(68dvh, 820px);
   display: grid;
   place-items: center;
   border: 1px solid rgba(255, 255, 255, 0.055);
@@ -1027,6 +1027,10 @@ h2 {
   text-align: center;
 }
 
+.loading-page {
+  color: var(--muted);
+}
+
 .webtoon-reader {
   width: min(100%, 900px);
   margin: 0 auto;
@@ -1048,7 +1052,7 @@ h2 {
 .reader-page.immersive {
   --reader-page-max-height: 100dvh;
   width: 100%;
-  min-height: 100vh;
+  min-height: 100dvh;
   padding: 0;
   background: #030407;
 }
@@ -1060,18 +1064,18 @@ h2 {
 }
 
 .reader-page.immersive .page-reader {
-  min-height: 100vh;
+  min-height: 100dvh;
   grid-template-columns: minmax(0, 1fr);
   gap: 0;
 }
 
 .reader-page.immersive .page-frame {
-  min-height: 100vh;
+  min-height: 100dvh;
   border-radius: 0;
 }
 
 .reader-page.immersive .page-frame img {
-  max-height: 100vh;
+  max-height: 100dvh;
 }
 
 .reader-page.immersive .reader-nav-button {
@@ -1085,7 +1089,7 @@ h2 {
 
 @media (max-width: 760px) {
   .reader-page {
-    --reader-page-max-height: 74vh;
+    --reader-page-max-height: min(74dvh, calc(100dvh - 24px));
   }
 
   .reader-page.immersive {
@@ -1227,7 +1231,7 @@ h2 {
   }
 
   .page-frame {
-    min-height: 64vh;
+    min-height: min(64dvh, 720px);
     order: 1;
   }
 

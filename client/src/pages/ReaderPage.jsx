@@ -56,7 +56,7 @@ function pageZoomStyle(value) {
   if (value === "fit-width") {
     return {
       width: "100%",
-      maxHeight: "none"
+      maxHeight: "var(--reader-page-max-height)"
     };
   }
 
@@ -531,6 +531,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
                 src={imageUrl(currentPage.imageUrl)}
                 alt={`Página ${currentPageIndex + 1}`}
                 className="reader-page-image"
+                fallback={<p className="missing-page loading-page">Cargando página...</p>}
                 onError={() => markPageFailed(currentPage.id)}
                 style={pageImageStyle}
               />
@@ -587,6 +588,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
                 <AuthenticatedImage
                   alt={`Página ${index + 1}`}
                   className="reader-webtoon-image"
+                  fallback={<p className="missing-page loading-page">Cargando página {index + 1}...</p>}
                   onError={() => markPageFailed(page.id)}
                   src={imageUrl(page.imageUrl)}
                 />

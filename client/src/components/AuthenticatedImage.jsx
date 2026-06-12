@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 export function AuthenticatedImage({
   alt = "",
   className,
+  fallback = null,
   loading,
   onError,
   src,
@@ -54,7 +55,7 @@ export function AuthenticatedImage({
   }, [src]);
 
   if (failed || !objectUrl) {
-    return null;
+    return fallback;
   }
 
   return (
