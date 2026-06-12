@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { getLibrary, imageUrl } from "../api.js";
+import { MangaThumbnail } from "../components/MangaThumbnail.jsx";
 
 const LIBRARY_SORT_KEY = "manga-reader.library-sort";
 
@@ -35,16 +36,13 @@ function MangaCard({ manga, onNavigate, featured = false }) {
   return (
     <article className={featured ? "manga-card continue-card" : "manga-card"}>
       <button className="cover-button" onClick={() => onNavigate(`/manga/${manga.id}`)}>
-        {manga.thumbnailUrl ? (
-          <img
-            alt={`Portada de ${manga.title}`}
-            className="cover-image"
-            loading="lazy"
-            src={imageUrl(manga.thumbnailUrl)}
-          />
-        ) : (
-          <span className="cover-placeholder">{manga.title.slice(0, 2).toUpperCase()}</span>
-        )}
+        <MangaThumbnail
+          className="cover-image"
+          loading="lazy"
+          placeholderClassName="cover-placeholder"
+          title={manga.title}
+          url={manga.thumbnailUrl ? imageUrl(manga.thumbnailUrl) : ""}
+        />
       </button>
       <div className="manga-card-body">
         <h2>{manga.title}</h2>

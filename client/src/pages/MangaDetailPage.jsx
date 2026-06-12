@@ -7,6 +7,7 @@ import {
   updateChapter,
   updateManga
 } from "../api.js";
+import { MangaThumbnail } from "../components/MangaThumbnail.jsx";
 
 function formatDate(value) {
   if (!value) {
@@ -171,15 +172,12 @@ export function MangaDetailPage({ mangaId, onNavigate }) {
       </button>
       <div className="manga-detail-hero">
         <div className="detail-cover">
-          {state.manga.thumbnailUrl ? (
-            <img
-              alt={`Portada de ${state.manga.title}`}
-              className="detail-cover-image"
-              src={imageUrl(state.manga.thumbnailUrl)}
-            />
-          ) : (
-            state.manga.title.slice(0, 2).toUpperCase()
-          )}
+          <MangaThumbnail
+            className="detail-cover-image"
+            placeholderClassName="detail-cover-placeholder"
+            title={state.manga.title}
+            url={state.manga.thumbnailUrl ? imageUrl(state.manga.thumbnailUrl) : ""}
+          />
         </div>
         <div>
           <p className="eyebrow">Manga</p>
