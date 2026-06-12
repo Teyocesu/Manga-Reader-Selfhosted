@@ -1028,6 +1028,10 @@ h2 {
   color: var(--muted);
 }
 
+.deferred-page {
+  color: var(--subtle);
+}
+
 .webtoon-reader {
   width: min(100%, 900px);
   margin: 0 auto;

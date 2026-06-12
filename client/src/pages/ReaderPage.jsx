@@ -83,6 +83,10 @@ function webtoonZoomStyle(value) {
   return { width: `min(${value}%, 1180px)` };
 }
 
+function shouldLoadWebtoonPage(index, currentPageIndex) {
+  return index <= 2 || Math.abs(index - currentPageIndex) <= 4;
+}
+
 export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }) {
   const [state, setState] = useState({
     loading: true,
@@ -601,6 +605,8 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
                     Reintentar
                   </button>
                 </p>
+              ) : !shouldLoadWebtoonPage(index, currentPageIndex) ? (
+                <p className="missing-page deferred-page">Página {index + 1}</p>
               ) : (
                 <AuthenticatedImage
                   alt={`Página ${index + 1}`}
