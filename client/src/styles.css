@@ -282,6 +282,12 @@ h2 {
   line-height: 1.6;
 }
 
+.catalog-hero h1,
+.upload-intro h1,
+.access-panel h1 {
+  font-size: clamp(2.35rem, 6vw, 4rem);
+}
+
 .status-card,
 .empty-state {
   width: min(100%, 760px);
@@ -349,6 +355,10 @@ h2 {
   margin-bottom: 14px;
 }
 
+.section-heading h2 {
+  font-size: 1.22rem;
+}
+
 .library-toolbar-heading {
   align-items: start;
 }
@@ -399,6 +409,10 @@ h2 {
 .continue-card .cover-placeholder,
 .continue-card .cover-image {
   min-height: 168px;
+}
+
+.continue-card .card-actions {
+  grid-template-columns: 1fr 1fr;
 }
 
 .cover-button {
@@ -464,6 +478,10 @@ h2 {
   display: grid;
   grid-template-columns: 1fr;
   gap: 8px;
+}
+
+.card-actions button {
+  min-height: 42px;
 }
 
 .compact-empty {
@@ -558,6 +576,11 @@ h2 {
   grid-template-columns: 172px minmax(0, 1fr);
   gap: 26px;
   align-items: end;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018)), var(--surface);
+  box-shadow: var(--shadow-md);
 }
 
 .detail-cover {
@@ -643,6 +666,11 @@ h2 {
   gap: 8px;
   flex-wrap: wrap;
   justify-content: end;
+}
+
+.chapter-actions button,
+.detail-actions button {
+  min-height: 42px;
 }
 
 .detail-actions {
@@ -1023,6 +1051,10 @@ h2 {
 
   .detail-cover {
     width: min(48vw, 160px);
+  }
+
+  .manga-detail-hero {
+    padding: 16px;
   }
 
   .detail-stats {
