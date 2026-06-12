@@ -7,7 +7,23 @@ const READER_MODE_KEY = "manga-reader.reader-mode";
 const READER_IMMERSIVE_KEY = "manga-reader.reader-immersive";
 const READER_IMMERSIVE_MENU_KEY = "manga-reader.reader-immersive-menu-open";
 const READER_ZOOM_KEY = "manga-reader.reader-zoom";
-const ZOOM_OPTIONS = ["80", "90", "100", "110", "fit-width"];
+const ZOOM_OPTIONS = [
+  "50",
+  "60",
+  "70",
+  "80",
+  "90",
+  "100",
+  "110",
+  "fit-page",
+  "fit-height",
+  "fit-width"
+];
+const ZOOM_LABELS = {
+  "fit-height": "Fit height",
+  "fit-page": "Fit page",
+  "fit-width": "Fit width"
+};
 
 function loadPreferredMode() {
   return readPreference(READER_MODE_KEY) === "webtoon" ? "webtoon" : "page";
@@ -27,13 +43,44 @@ function loadPreferredZoom() {
 }
 
 function zoomLabel(value) {
-  return value === "fit-width" ? "Fit width" : `${value}%`;
+  return ZOOM_LABELS[value] || `${value}%`;
 }
 
 function nextZoom(value, direction) {
   const index = ZOOM_OPTIONS.indexOf(value);
   const safeIndex = index === -1 ? ZOOM_OPTIONS.indexOf("100") : index;
   return ZOOM_OPTIONS[Math.min(Math.max(safeIndex + direction, 0), ZOOM_OPTIONS.length - 1)];
+}
+
+function pageZoomStyle(value) {
+  if (value === "fit-width") {
+    return {
+      width: "100%",
+      maxHeight: "none"
+    };
+  }
+
+  if (value === "fit-height" || value === "fit-page") {
+    return {
+      width: "auto",
+      maxWidth: "100%",
+      maxHeight: "var(--reader-page-max-height)"
+    };
+  }
+
+  return { width: `${value}%` };
+}
+
+function webtoonZoomStyle(value) {
+  if (value === "fit-width") {
+    return undefined;
+  }
+
+  if (value === "fit-height" || value === "fit-page") {
+    return { width: "min(70%, 760px)" };
+  }
+
+  return { width: `min(${value}%, 1180px)` };
 }
 
 export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }) {
@@ -225,12 +272,8 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
     : 0;
   const remainingPages = Math.max(0, pageCount - currentPageIndex - 1);
   const currentPageFailed = currentPage ? failedPageIds.has(currentPage.id) : false;
-  const pageImageStyle = readerZoom === "fit-width"
-    ? { width: "100%" }
-    : { width: `${readerZoom}%` };
-  const webtoonStyle = readerZoom === "fit-width"
-    ? undefined
-    : { width: `min(${readerZoom}%, 1180px)` };
+  const pageImageStyle = pageZoomStyle(readerZoom);
+  const webtoonStyle = webtoonZoomStyle(readerZoom);
   const canFullscreen = Boolean(document.fullscreenEnabled);
 
   function previousPage() {

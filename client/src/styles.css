@@ -719,6 +719,7 @@ h2 {
 }
 
 .reader-page {
+  --reader-page-max-height: 78vh;
   width: min(100%, 1280px);
   margin: 0 auto;
   padding-bottom: env(safe-area-inset-bottom);
@@ -787,7 +788,7 @@ h2 {
 
 .zoom-control {
   display: grid;
-  grid-template-columns: 38px minmax(76px, auto) 38px;
+  grid-template-columns: 38px minmax(90px, auto) 38px;
   gap: 6px;
   align-items: center;
   padding: 4px;
@@ -802,7 +803,7 @@ h2 {
 }
 
 .zoom-control span {
-  min-width: 72px;
+  min-width: 86px;
   color: var(--text);
   font-size: 0.9rem;
   font-weight: 900;
@@ -987,7 +988,7 @@ h2 {
 .page-frame img,
 .reader-page-image {
   width: 100%;
-  max-height: 78vh;
+  max-height: var(--reader-page-max-height);
   object-fit: contain;
 }
 
@@ -1045,6 +1046,7 @@ h2 {
 }
 
 .reader-page.immersive {
+  --reader-page-max-height: 100dvh;
   width: 100%;
   min-height: 100vh;
   padding: 0;
@@ -1082,6 +1084,14 @@ h2 {
 }
 
 @media (max-width: 760px) {
+  .reader-page {
+    --reader-page-max-height: 74vh;
+  }
+
+  .reader-page.immersive {
+    --reader-page-max-height: 100dvh;
+  }
+
   .app-shell {
     padding: 14px 12px 28px;
   }
@@ -1227,10 +1237,6 @@ h2 {
 
   .page-reader button:last-child {
     order: 3;
-  }
-
-  .page-frame img {
-    max-height: 74vh;
   }
 
   .reader-immersive-tab {
