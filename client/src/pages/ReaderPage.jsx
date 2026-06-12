@@ -24,6 +24,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
   const [isImmersive, setIsImmersive] = useState(loadPreferredImmersive);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [saveState, setSaveState] = useState("");
+  const [failedPageIds, setFailedPageIds] = useState(() => new Set());
   const imageRefs = useRef([]);
   const readerRef = useRef(null);
   const readyRef = useRef(false);
@@ -32,6 +33,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
   useEffect(() => {
     let alive = true;
     readyRef.current = false;
+    setFailedPageIds(new Set());
 
     getChapter(chapterId)
       .then((data) => {
@@ -171,7 +173,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
   });
 
   if (state.loading) {
-    return <p className="status-card">Cargando capitulo...</p>;
+    return <p className="status-card">Cargando capítulo...</p>;
   }
 
   if (state.error) {
@@ -181,15 +183,34 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
   const { manga, chapter, pages } = state.data;
   const currentPage = pages[currentPageIndex];
   const pageCount = pages.length;
-  const progressPercent = Math.round(((currentPageIndex + 1) / pageCount) * 100);
+  const progressPercent = pageCount > 0
+    ? Math.round(((currentPageIndex + 1) / pageCount) * 100)
+    : 0;
   const remainingPages = Math.max(0, pageCount - currentPageIndex - 1);
+  const currentPageFailed = currentPage ? failedPageIds.has(currentPage.id) : false;
 
   function previousPage() {
+    if (pageCount === 0) {
+      return;
+    }
+
     setCurrentPageIndex((value) => Math.max(0, value - 1));
   }
 
   function nextPage() {
+    if (pageCount === 0) {
+      return;
+    }
+
     setCurrentPageIndex((value) => Math.min(pageCount - 1, value + 1));
+  }
+
+  function markPageFailed(pageId) {
+    setFailedPageIds((current) => {
+      const next = new Set(current);
+      next.add(pageId);
+      return next;
+    });
   }
 
   function handlePointerDown(event) {
@@ -292,7 +313,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
             className={mode === "page" ? "active" : ""}
             onClick={() => setReaderMode("page")}
           >
-            Pagina
+            Página
           </button>
           <button
             className={mode === "webtoon" ? "active" : ""}
@@ -316,8 +337,8 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
           <span style={{ width: `${progressPercent}%` }} />
         </div>
         <p>
-          Pagina {currentPageIndex + 1} de {pageCount} · {progressPercent}% · Quedan{" "}
-          {remainingPages} pagina{remainingPages === 1 ? "" : "s"}
+          Página {pageCount === 0 ? 0 : currentPageIndex + 1} de {pageCount} · {progressPercent}% · Quedan{" "}
+          {remainingPages} página{remainingPages === 1 ? "" : "s"}
           {saveState ? ` · ${saveState}` : ""}
         </p>
       </div>
@@ -359,8 +380,12 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
             onPointerDown={handlePointerDown}
             onPointerUp={handlePointerUp}
           >
-            {currentPage ? (
-              <img src={imageUrl(currentPage.imageUrl)} alt={`Página ${currentPageIndex + 1}`} />
+            {currentPage && !currentPageFailed ? (
+              <img
+                src={imageUrl(currentPage.imageUrl)}
+                alt={`Página ${currentPageIndex + 1}`}
+                onError={() => markPageFailed(currentPage.id)}
+              />
             ) : (
               <p className="missing-page">No hay imagen para esta página.</p>
             )}
@@ -394,15 +419,24 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
       ) : (
         <div className="webtoon-reader">
           {pages.map((page, index) => (
-            <img
-              alt={`Pagina ${index + 1}`}
+            <div
+              className="webtoon-page"
               data-page-index={index}
               key={page.id}
               ref={(element) => {
                 imageRefs.current[index] = element;
               }}
-              src={imageUrl(page.imageUrl)}
-            />
+            >
+              {failedPageIds.has(page.id) ? (
+                <p className="missing-page">No se pudo cargar la página {index + 1}.</p>
+              ) : (
+                <img
+                  alt={`Página ${index + 1}`}
+                  onError={() => markPageFailed(page.id)}
+                  src={imageUrl(page.imageUrl)}
+                />
+              )}
+            </div>
           ))}
         </div>
       )}

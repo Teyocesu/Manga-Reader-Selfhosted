@@ -14,6 +14,7 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
       supportedFormats: [".zip", ".cbz", ".rar", ".cbr"]
     }
   });
+  const [setupLoading, setSetupLoading] = useState(true);
   const [status, setStatus] = useState({ loading: false, error: "", success: "" });
   const [importedSubmissionKey, setImportedSubmissionKey] = useState("");
 
@@ -31,6 +32,7 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
     Boolean(fileKey) && importedSubmissionKey === submissionKey;
   const submitDisabled =
     status.loading ||
+    setupLoading ||
     alreadyImportedFromSelection ||
     (importMode === "existing" && !selectedMangaId);
   const previewTitle = archive
@@ -46,13 +48,15 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
         if (alive) {
           setAppConfig(config);
           setMangas(library.mangas);
-          if (!selectedMangaId && library.mangas.length > 0) {
+          setSetupLoading(false);
+          if (!initialMangaId && library.mangas.length > 0) {
             setSelectedMangaId(library.mangas[0].id);
           }
         }
       })
       .catch(() => {
         if (alive) {
+          setSetupLoading(false);
           setStatus({
             loading: false,
             error: "No se pudo conectar con el servidor. Revisá que el backend esté corriendo.",
@@ -64,7 +68,7 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
     return () => {
       alive = false;
     };
-  }, [selectedMangaId]);
+  }, [initialMangaId]);
 
   function formatFileSize(file) {
     if (!file) {
@@ -156,6 +160,10 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
       </div>
 
       <form className="upload-form" onSubmit={handleSubmit}>
+        {setupLoading ? (
+          <p className="file-summary">Cargando configuración y biblioteca...</p>
+        ) : null}
+
         <div className="mode-toggle upload-mode-toggle" aria-label="Tipo de importación">
           <button
             className={importMode === "new" ? "active" : ""}

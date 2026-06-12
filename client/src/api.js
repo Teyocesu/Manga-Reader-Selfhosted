@@ -20,7 +20,11 @@ async function request(path, options = {}) {
 
   if (!response.ok) {
     const message = typeof body === "object" ? body.error : body;
-    throw new Error(message || "Request failed");
+    if (response.status >= 500) {
+      throw new Error("El servidor encontró un problema. Probá de nuevo en unos segundos.");
+    }
+
+    throw new Error(message || "No se pudo completar la acción.");
   }
 
   return body;

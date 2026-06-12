@@ -812,6 +812,12 @@ h2 {
   scroll-margin-top: 96px;
 }
 
+.webtoon-page {
+  min-height: 120px;
+  display: grid;
+  place-items: center;
+}
+
 .webtoon-reader img {
   width: 100%;
 }

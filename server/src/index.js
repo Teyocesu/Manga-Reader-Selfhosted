@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { config } from "./config.js";
@@ -22,6 +23,14 @@ if (process.env.NODE_ENV === "production" && !config.appPassword) {
   );
 }
 
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      "img-src": ["'self'", "data:"]
+    }
+  },
+  crossOriginEmbedderPolicy: false
+}));
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 
