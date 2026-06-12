@@ -987,25 +987,42 @@ h2 {
   inset: 0;
   display: grid;
   grid-template-columns: 28% 44% 28%;
+  pointer-events: none;
 }
 
 .tap-zone {
+  appearance: none;
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
+  pointer-events: auto;
   min-height: 0;
   border: 0;
   border-radius: 0;
   padding: 0;
-  background: transparent;
-  box-shadow: none;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: transparent;
+  opacity: 0;
 }
 
-.tap-zone:hover {
+.tap-zone:hover,
+.tap-zone:active,
+.tap-zone:focus {
   transform: none;
-  background: transparent;
   border-color: transparent;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: 0;
 }
 
 .tap-zone:disabled {
   cursor: default;
+  opacity: 0;
+}
+
+.tap-zone:focus-visible {
+  outline: 2px solid rgba(45, 212, 191, 0.55);
+  outline-offset: -4px;
   opacity: 1;
 }
 
