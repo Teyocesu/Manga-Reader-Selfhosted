@@ -140,6 +140,11 @@ body.reader-immersive-active .app-header {
   display: none;
 }
 
+body.reader-active .app-header {
+  position: relative;
+  top: auto;
+}
+
 body.reader-immersive-active .app-shell {
   min-height: 100dvh;
   padding: 0;

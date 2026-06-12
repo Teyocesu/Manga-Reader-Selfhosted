@@ -126,6 +126,14 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
   const pointerStartRef = useRef(null);
 
   useEffect(() => {
+    document.body.classList.add("reader-active");
+
+    return () => {
+      document.body.classList.remove("reader-active");
+    };
+  }, []);
+
+  useEffect(() => {
     let alive = true;
     readyRef.current = false;
     setFailedPageIds(new Set());
