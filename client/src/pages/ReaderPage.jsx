@@ -24,6 +24,8 @@ const ZOOM_LABELS = {
   "fit-page": "Fit page",
   "fit-width": "Fit width"
 };
+const WEBTOON_MAX_ACTIVE_LOADS = 3;
+const WEBTOON_IMAGE_TIMEOUT_MS = 9000;
 
 function loadPreferredMode() {
   return readPreference(READER_MODE_KEY) === "webtoon" ? "webtoon" : "page";
@@ -91,6 +93,16 @@ function isPriorityWebtoonPage(index, currentPageIndex) {
   return index >= currentPageIndex - 1 && index <= currentPageIndex + 3;
 }
 
+function webtoonLoadRank(index, currentPageIndex) {
+  if (index === currentPageIndex) {
+    return 0;
+  }
+
+  const distance = Math.abs(index - currentPageIndex);
+  const directionBias = index > currentPageIndex ? 0.2 : 0.45;
+  return distance + directionBias;
+}
+
 export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }) {
   const [state, setState] = useState({
     loading: true,
@@ -107,6 +119,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
   const [saveState, setSaveState] = useState("");
   const [failedPageIds, setFailedPageIds] = useState(() => new Set());
   const [loadedPageIds, setLoadedPageIds] = useState(() => new Set());
+  const [activeWebtoonPageIds, setActiveWebtoonPageIds] = useState(() => new Set());
   const imageRefs = useRef([]);
   const readerRef = useRef(null);
   const readyRef = useRef(false);
@@ -117,6 +130,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
     readyRef.current = false;
     setFailedPageIds(new Set());
     setLoadedPageIds(new Set());
+    setActiveWebtoonPageIds(new Set());
 
     getChapter(chapterId)
       .then((data) => {
@@ -212,6 +226,37 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
 
     return () => observer.disconnect();
   }, [mode, state.data]);
+
+  useEffect(() => {
+    if (mode !== "webtoon" || !state.data) {
+      setActiveWebtoonPageIds((current) => current.size > 0 ? new Set() : current);
+      return;
+    }
+
+    const nextIds = state.data.pages
+      .map((page, index) => ({ id: page.id, index }))
+      .filter(({ id, index }) =>
+        !loadedPageIds.has(id) &&
+        !failedPageIds.has(id) &&
+        shouldLoadWebtoonPage(index, currentPageIndex)
+      )
+      .sort((a, b) =>
+        webtoonLoadRank(a.index, currentPageIndex) - webtoonLoadRank(b.index, currentPageIndex)
+      )
+      .slice(0, WEBTOON_MAX_ACTIVE_LOADS)
+      .map(({ id }) => id);
+
+    setActiveWebtoonPageIds((current) => {
+      if (
+        current.size === nextIds.length &&
+        nextIds.every((id) => current.has(id))
+      ) {
+        return current;
+      }
+
+      return new Set(nextIds);
+    });
+  }, [currentPageIndex, failedPageIds, loadedPageIds, mode, state.data]);
 
   useEffect(() => {
     document.body.classList.toggle("reader-immersive-active", isImmersive);
@@ -618,20 +663,21 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
                     Reintentar
                   </button>
                 </p>
-              ) : !loadedPageIds.has(page.id) && !shouldLoadWebtoonPage(index, currentPageIndex) ? (
+              ) : !loadedPageIds.has(page.id) && !activeWebtoonPageIds.has(page.id) ? (
                 <p className="missing-page deferred-page">Página {index + 1}</p>
               ) : (
                 <AuthenticatedImage
                   alt={`Página ${index + 1}`}
-                  autoRetry={1}
+                  autoRetry={2}
                   className="reader-webtoon-image"
                   decoding="async"
                   fetchPriority={isPriorityWebtoonPage(index, currentPageIndex) ? "high" : "auto"}
                   fallback={<p className="missing-page loading-page">Cargando página {index + 1}...</p>}
-                  loading={isPriorityWebtoonPage(index, currentPageIndex) ? "eager" : "lazy"}
+                  loading="eager"
                   onError={() => markPageFailed(page.id)}
                   onLoad={() => markPageLoaded(page.id)}
                   src={imageUrl(page.imageUrl)}
+                  timeoutMs={WEBTOON_IMAGE_TIMEOUT_MS}
                 />
               )}
             </div>

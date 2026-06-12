@@ -12,6 +12,7 @@ export function AuthenticatedImage({
   onLoad,
   src,
   style,
+  timeoutMs = IMAGE_TIMEOUT_MS,
   ...imageProps
 }) {
   const [status, setStatus] = useState("loading");
@@ -27,10 +28,10 @@ export function AuthenticatedImage({
       return undefined;
     }
 
-    const timeoutId = window.setTimeout(() => retryOrFail(), IMAGE_TIMEOUT_MS);
+    const timeoutId = window.setTimeout(() => retryOrFail(), timeoutMs);
 
     return () => window.clearTimeout(timeoutId);
-  }, [attempt, autoRetry, src, status]);
+  }, [attempt, autoRetry, src, status, timeoutMs]);
 
   function retryOrFail(event) {
     if (attempt < autoRetry) {
