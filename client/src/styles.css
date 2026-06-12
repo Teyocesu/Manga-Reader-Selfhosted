@@ -976,6 +976,7 @@ h2 {
 
 .page-frame img,
 .reader-page-image {
+  grid-area: 1 / 1;
   width: 100%;
   max-height: var(--reader-page-max-height);
   object-fit: contain;
@@ -1009,11 +1010,18 @@ h2 {
 }
 
 .missing-page {
+  grid-area: 1 / 1;
   margin: 0;
   padding: 24px;
   color: #fecaca;
   font-weight: 900;
   text-align: center;
+}
+
+.missing-page button {
+  display: block;
+  width: fit-content;
+  margin: 14px auto 0;
 }
 
 .loading-page {
@@ -1035,6 +1043,7 @@ h2 {
 }
 
 .webtoon-reader img {
+  grid-area: 1 / 1;
   width: 100%;
 }
 

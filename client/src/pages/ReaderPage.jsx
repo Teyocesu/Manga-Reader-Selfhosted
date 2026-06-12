@@ -300,6 +300,14 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
     });
   }
 
+  function retryPage(pageId) {
+    setFailedPageIds((current) => {
+      const next = new Set(current);
+      next.delete(pageId);
+      return next;
+    });
+  }
+
   function handlePointerDown(event) {
     if (mode !== "page") {
       return;
@@ -531,13 +539,19 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
                 src={imageUrl(currentPage.imageUrl)}
                 alt={`Página ${currentPageIndex + 1}`}
                 className="reader-page-image"
+                decoding="async"
+                fetchPriority="high"
                 fallback={<p className="missing-page loading-page">Cargando página...</p>}
+                loading="eager"
                 onError={() => markPageFailed(currentPage.id)}
                 style={pageImageStyle}
               />
             ) : currentPageFailed ? (
               <p className="missing-page">
                 No se pudo cargar el archivo de esta página desde storage.
+                <button onClick={() => retryPage(currentPage.id)} type="button">
+                  Reintentar
+                </button>
               </p>
             ) : (
               <p className="missing-page">Este capítulo no tiene páginas registradas.</p>
@@ -583,12 +597,17 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
               {failedPageIds.has(page.id) ? (
                 <p className="missing-page">
                   No se pudo cargar el archivo de la página {index + 1} desde storage.
+                  <button onClick={() => retryPage(page.id)} type="button">
+                    Reintentar
+                  </button>
                 </p>
               ) : (
                 <AuthenticatedImage
                   alt={`Página ${index + 1}`}
                   className="reader-webtoon-image"
+                  decoding="async"
                   fallback={<p className="missing-page loading-page">Cargando página {index + 1}...</p>}
+                  loading="lazy"
                   onError={() => markPageFailed(page.id)}
                   src={imageUrl(page.imageUrl)}
                 />

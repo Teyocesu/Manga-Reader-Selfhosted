@@ -1,70 +1,70 @@
 import { useEffect, useState } from "react";
 
+const IMAGE_TIMEOUT_MS = 20000;
+
 export function AuthenticatedImage({
   alt = "",
   className,
   fallback = null,
   loading,
   onError,
+  onLoad,
   src,
+  style,
   ...imageProps
 }) {
-  const [objectUrl, setObjectUrl] = useState("");
-  const [failed, setFailed] = useState(false);
+  const [status, setStatus] = useState("loading");
 
   useEffect(() => {
-    let alive = true;
-    let nextObjectUrl = "";
+    setStatus(src ? "loading" : "error");
+  }, [src]);
 
-    setFailed(false);
-    setObjectUrl("");
-
-    if (!src) {
-      setFailed(true);
-      onError?.();
+  useEffect(() => {
+    if (!src || status !== "loading") {
       return undefined;
     }
 
-    fetch(src, { credentials: "include" })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Image request failed");
-        }
-        return response.blob();
-      })
-      .then((blob) => {
-        if (!alive) {
-          return;
-        }
-        nextObjectUrl = URL.createObjectURL(blob);
-        setObjectUrl(nextObjectUrl);
-      })
-      .catch(() => {
-        if (alive) {
-          setFailed(true);
-          onError?.();
-        }
-      });
+    const timeoutId = window.setTimeout(() => {
+      setStatus("error");
+      onError?.();
+    }, IMAGE_TIMEOUT_MS);
 
-    return () => {
-      alive = false;
-      if (nextObjectUrl) {
-        URL.revokeObjectURL(nextObjectUrl);
-      }
-    };
-  }, [src]);
+    return () => window.clearTimeout(timeoutId);
+  }, [src, status]);
 
-  if (failed || !objectUrl) {
-    return fallback;
+  function handleLoad(event) {
+    setStatus("loaded");
+    onLoad?.(event);
+  }
+
+  function handleError(event) {
+    setStatus("error");
+    onError?.(event);
+  }
+
+  if (!src || status === "error") {
+    return typeof fallback === "function"
+      ? fallback({ retry: () => setStatus("loading"), status })
+      : fallback;
   }
 
   return (
-    <img
-      alt={alt}
-      className={className}
-      loading={loading}
-      src={objectUrl}
-      {...imageProps}
-    />
+    <>
+      {status === "loading" && (
+        typeof fallback === "function"
+          ? fallback({ retry: () => setStatus("loading"), status })
+          : fallback
+      )}
+      <img
+        alt={alt}
+        className={className}
+        loading={loading}
+        onError={handleError}
+        onLoad={handleLoad}
+        src={src}
+        style={status === "loaded" ? style : { ...style, opacity: 0 }}
+        {...imageProps}
+      />
+    </>
   );
 }
