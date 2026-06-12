@@ -588,10 +588,10 @@ h2 {
 .manga-detail-hero {
   margin-top: 18px;
   display: grid;
-  grid-template-columns: 172px minmax(0, 1fr);
-  gap: 26px;
-  align-items: end;
-  padding: 22px;
+  grid-template-columns: clamp(190px, 22vw, 244px) minmax(0, 1fr);
+  gap: 30px;
+  align-items: center;
+  padding: 24px;
   border: 1px solid var(--line);
   border-radius: var(--radius-xl);
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018)), var(--surface);
@@ -599,7 +599,7 @@ h2 {
 }
 
 .detail-cover {
-  width: 172px;
+  width: 100%;
   aspect-ratio: 3 / 4.2;
   border-radius: var(--radius-lg);
   font-size: 2rem;
@@ -1155,11 +1155,12 @@ h2 {
   }
 
   .detail-cover {
-    width: min(48vw, 160px);
+    width: min(54vw, 180px);
   }
 
   .manga-detail-hero {
     padding: 16px;
+    justify-items: start;
   }
 
   .detail-stats {
