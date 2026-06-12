@@ -360,14 +360,15 @@ h2 {
 }
 
 .library-toolbar-heading {
-  align-items: start;
+  align-items: end;
 }
 
 .library-toolbar {
-  width: min(100%, 620px);
+  width: min(100%, 640px);
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(160px, 0.75fr);
-  gap: 12px;
+  grid-template-columns: minmax(260px, 1fr) minmax(220px, 0.78fr);
+  gap: 16px;
+  align-items: end;
 }
 
 .library-toolbar label {
