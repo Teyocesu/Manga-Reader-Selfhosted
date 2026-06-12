@@ -1,21 +1,39 @@
 import { useEffect, useRef, useState } from "react";
 import { getChapter, imageUrl, saveProgress } from "../api.js";
 import { AuthenticatedImage } from "../components/AuthenticatedImage.jsx";
+import { readPreference, writePreference } from "../utils/preferences.js";
 
 const READER_MODE_KEY = "manga-reader.reader-mode";
 const READER_IMMERSIVE_KEY = "manga-reader.reader-immersive";
 const READER_IMMERSIVE_MENU_KEY = "manga-reader.reader-immersive-menu-open";
+const READER_ZOOM_KEY = "manga-reader.reader-zoom";
+const ZOOM_OPTIONS = ["80", "90", "100", "110", "fit-width"];
 
 function loadPreferredMode() {
-  return window.localStorage.getItem(READER_MODE_KEY) === "webtoon" ? "webtoon" : "page";
+  return readPreference(READER_MODE_KEY) === "webtoon" ? "webtoon" : "page";
 }
 
 function loadPreferredImmersive() {
-  return window.localStorage.getItem(READER_IMMERSIVE_KEY) === "1";
+  return readPreference(READER_IMMERSIVE_KEY) === "1";
 }
 
 function loadPreferredImmersiveMenu() {
-  return window.localStorage.getItem(READER_IMMERSIVE_MENU_KEY) === "1";
+  return readPreference(READER_IMMERSIVE_MENU_KEY) === "1";
+}
+
+function loadPreferredZoom() {
+  const stored = readPreference(READER_ZOOM_KEY, "100");
+  return ZOOM_OPTIONS.includes(stored) ? stored : "100";
+}
+
+function zoomLabel(value) {
+  return value === "fit-width" ? "Fit width" : `${value}%`;
+}
+
+function nextZoom(value, direction) {
+  const index = ZOOM_OPTIONS.indexOf(value);
+  const safeIndex = index === -1 ? ZOOM_OPTIONS.indexOf("100") : index;
+  return ZOOM_OPTIONS[Math.min(Math.max(safeIndex + direction, 0), ZOOM_OPTIONS.length - 1)];
 }
 
 export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }) {
@@ -29,6 +47,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
   const [jumpValue, setJumpValue] = useState("1");
   const [isImmersive, setIsImmersive] = useState(loadPreferredImmersive);
   const [isImmersiveMenuOpen, setIsImmersiveMenuOpen] = useState(loadPreferredImmersiveMenu);
+  const [readerZoom, setReaderZoom] = useState(loadPreferredZoom);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [saveState, setSaveState] = useState("");
   const [failedPageIds, setFailedPageIds] = useState(() => new Set());
@@ -75,19 +94,23 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
   }, [currentPageIndex]);
 
   useEffect(() => {
-    window.localStorage.setItem(READER_MODE_KEY, mode);
+    writePreference(READER_MODE_KEY, mode);
   }, [mode]);
 
   useEffect(() => {
-    window.localStorage.setItem(READER_IMMERSIVE_KEY, isImmersive ? "1" : "0");
+    writePreference(READER_IMMERSIVE_KEY, isImmersive ? "1" : "0");
   }, [isImmersive]);
 
   useEffect(() => {
-    window.localStorage.setItem(
+    writePreference(
       READER_IMMERSIVE_MENU_KEY,
       isImmersiveMenuOpen ? "1" : "0"
     );
   }, [isImmersiveMenuOpen]);
+
+  useEffect(() => {
+    writePreference(READER_ZOOM_KEY, readerZoom);
+  }, [readerZoom]);
 
   useEffect(() => {
     if (!readyRef.current || !state.data) {
@@ -202,6 +225,12 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
     : 0;
   const remainingPages = Math.max(0, pageCount - currentPageIndex - 1);
   const currentPageFailed = currentPage ? failedPageIds.has(currentPage.id) : false;
+  const pageImageStyle = readerZoom === "fit-width"
+    ? { width: "100%" }
+    : { width: `${readerZoom}%` };
+  const webtoonStyle = readerZoom === "fit-width"
+    ? undefined
+    : { width: `min(${readerZoom}%, 1180px)` };
 
   function previousPage() {
     if (pageCount === 0) {
@@ -296,6 +325,10 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
     }
   }
 
+  function changeZoom(direction) {
+    setReaderZoom((value) => nextZoom(value, direction));
+  }
+
   async function toggleFullscreen() {
     if (!document.fullscreenEnabled) {
       return;
@@ -334,6 +367,23 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
             onClick={() => setReaderMode("webtoon")}
           >
             Webtoon
+          </button>
+        </div>
+        <div className="zoom-control" aria-label="Zoom de lectura">
+          <button
+            disabled={readerZoom === ZOOM_OPTIONS[0]}
+            onClick={() => changeZoom(-1)}
+            type="button"
+          >
+            -
+          </button>
+          <span>{zoomLabel(readerZoom)}</span>
+          <button
+            disabled={readerZoom === ZOOM_OPTIONS[ZOOM_OPTIONS.length - 1]}
+            onClick={() => changeZoom(1)}
+            type="button"
+          >
+            +
           </button>
         </div>
         <div className="reader-actions">
@@ -376,6 +426,23 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
         <div className={`reader-immersive-dock ${isImmersiveMenuOpen ? "open" : "collapsed"}`}>
           {isImmersiveMenuOpen ? (
             <div className="reader-immersive-menu">
+              <div className="zoom-control immersive-zoom" aria-label="Zoom de lectura">
+                <button
+                  disabled={readerZoom === ZOOM_OPTIONS[0]}
+                  onClick={() => changeZoom(-1)}
+                  type="button"
+                >
+                  -
+                </button>
+                <span>{zoomLabel(readerZoom)}</span>
+                <button
+                  disabled={readerZoom === ZOOM_OPTIONS[ZOOM_OPTIONS.length - 1]}
+                  onClick={() => changeZoom(1)}
+                  type="button"
+                >
+                  +
+                </button>
+              </div>
               <button onClick={() => setIsImmersive(false)}>Mostrar UI</button>
               <button onClick={toggleFullscreen} disabled={!document.fullscreenEnabled}>
                 {isFullscreen ? "Salir pantalla completa" : "Pantalla completa"}
@@ -414,7 +481,9 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
               <AuthenticatedImage
                 src={imageUrl(currentPage.imageUrl)}
                 alt={`Página ${currentPageIndex + 1}`}
+                className="reader-page-image"
                 onError={() => markPageFailed(currentPage.id)}
+                style={pageImageStyle}
               />
             ) : currentPageFailed ? (
               <p className="missing-page">
@@ -451,7 +520,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
           </button>
         </div>
       ) : (
-        <div className="webtoon-reader">
+        <div className="webtoon-reader" style={webtoonStyle}>
           {pages.map((page, index) => (
             <div
               className="webtoon-page"
@@ -468,6 +537,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
               ) : (
                 <AuthenticatedImage
                   alt={`Página ${index + 1}`}
+                  className="reader-webtoon-image"
                   onError={() => markPageFailed(page.id)}
                   src={imageUrl(page.imageUrl)}
                 />
