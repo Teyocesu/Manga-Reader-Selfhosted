@@ -84,7 +84,11 @@ function webtoonZoomStyle(value) {
 }
 
 function shouldLoadWebtoonPage(index, currentPageIndex) {
-  return index <= 2 || Math.abs(index - currentPageIndex) <= 4;
+  return index <= 3 || (index >= currentPageIndex - 3 && index <= currentPageIndex + 8);
+}
+
+function isPriorityWebtoonPage(index, currentPageIndex) {
+  return index >= currentPageIndex - 1 && index <= currentPageIndex + 3;
 }
 
 export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }) {
@@ -556,6 +560,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
               <AuthenticatedImage
                 src={imageUrl(currentPage.imageUrl)}
                 alt={`Página ${currentPageIndex + 1}`}
+                autoRetry={1}
                 className="reader-page-image"
                 decoding="async"
                 fetchPriority="high"
@@ -618,10 +623,12 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
               ) : (
                 <AuthenticatedImage
                   alt={`Página ${index + 1}`}
+                  autoRetry={1}
                   className="reader-webtoon-image"
                   decoding="async"
+                  fetchPriority={isPriorityWebtoonPage(index, currentPageIndex) ? "high" : "auto"}
                   fallback={<p className="missing-page loading-page">Cargando página {index + 1}...</p>}
-                  loading="lazy"
+                  loading={isPriorityWebtoonPage(index, currentPageIndex) ? "eager" : "lazy"}
                   onError={() => markPageFailed(page.id)}
                   onLoad={() => markPageLoaded(page.id)}
                   src={imageUrl(page.imageUrl)}

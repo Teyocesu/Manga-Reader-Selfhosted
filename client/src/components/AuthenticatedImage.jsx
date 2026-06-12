@@ -4,6 +4,7 @@ const IMAGE_TIMEOUT_MS = 20000;
 
 export function AuthenticatedImage({
   alt = "",
+  autoRetry = 0,
   className,
   fallback = null,
   loading,
@@ -14,9 +15,11 @@ export function AuthenticatedImage({
   ...imageProps
 }) {
   const [status, setStatus] = useState("loading");
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     setStatus(src ? "loading" : "error");
+    setAttempt(0);
   }, [src]);
 
   useEffect(() => {
@@ -24,13 +27,21 @@ export function AuthenticatedImage({
       return undefined;
     }
 
-    const timeoutId = window.setTimeout(() => {
-      setStatus("error");
-      onError?.();
-    }, IMAGE_TIMEOUT_MS);
+    const timeoutId = window.setTimeout(() => retryOrFail(), IMAGE_TIMEOUT_MS);
 
     return () => window.clearTimeout(timeoutId);
-  }, [src, status]);
+  }, [attempt, autoRetry, src, status]);
+
+  function retryOrFail(event) {
+    if (attempt < autoRetry) {
+      setAttempt((value) => value + 1);
+      setStatus("loading");
+      return;
+    }
+
+    setStatus("error");
+    onError?.(event);
+  }
 
   function handleLoad(event) {
     setStatus("loaded");
@@ -38,13 +49,18 @@ export function AuthenticatedImage({
   }
 
   function handleError(event) {
-    setStatus("error");
-    onError?.(event);
+    retryOrFail(event);
   }
 
   if (!src || status === "error") {
     return typeof fallback === "function"
-      ? fallback({ retry: () => setStatus("loading"), status })
+      ? fallback({
+          retry: () => {
+            setAttempt((value) => value + 1);
+            setStatus("loading");
+          },
+          status
+        })
       : fallback;
   }
 
@@ -58,6 +74,7 @@ export function AuthenticatedImage({
       <img
         alt={alt}
         className={className}
+        key={`${src}:${attempt}`}
         loading={loading}
         onError={handleError}
         onLoad={handleLoad}
