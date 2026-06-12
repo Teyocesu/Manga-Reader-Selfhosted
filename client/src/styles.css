@@ -497,6 +497,53 @@ h2 {
   overflow: hidden;
 }
 
+.detail-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 16px 0 0;
+}
+
+.detail-stats div {
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.detail-stats dt {
+  margin: 0 0 5px;
+  color: #aab2c5;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.detail-stats dd {
+  margin: 0;
+  color: #ffffff;
+  font-weight: 900;
+}
+
+.edit-panel {
+  margin-top: 12px;
+  color: #aab2c5;
+}
+
+.edit-panel summary {
+  width: fit-content;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  color: #5eead4;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.edit-panel.compact {
+  margin-top: 6px;
+}
+
 .chapter-list {
   margin-top: 28px;
   display: grid;
@@ -849,6 +896,10 @@ h2 {
 
   .detail-cover {
     width: min(46vw, 150px);
+  }
+
+  .detail-stats {
+    grid-template-columns: 1fr;
   }
 
   .reader-topbar {

@@ -60,7 +60,7 @@ export default function App() {
   }
 
   const mangaMatch = route.match(/^\/manga\/([^/]+)$/);
-  const chapterMatch = route.match(/^\/chapter\/([^/]+)$/);
+  const chapterMatch = route.match(/^\/chapter\/([^/?]+)(?:\?(.*))?$/);
   const uploadMatch = route.match(/^\/upload(?:\?(.*))?$/);
 
   let page = <LibraryPage onNavigate={navigate} />;
@@ -70,7 +70,14 @@ export default function App() {
   } else if (mangaMatch) {
     page = <MangaDetailPage mangaId={mangaMatch[1]} onNavigate={navigate} />;
   } else if (chapterMatch) {
-    page = <ReaderPage chapterId={chapterMatch[1]} onNavigate={navigate} />;
+    const params = new URLSearchParams(chapterMatch[2] || "");
+    page = (
+      <ReaderPage
+        chapterId={chapterMatch[1]}
+        onNavigate={navigate}
+        startFromBeginning={params.get("start") === "1"}
+      />
+    );
   }
 
   return (

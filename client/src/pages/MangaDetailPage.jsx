@@ -8,6 +8,31 @@ import {
   updateManga
 } from "../api.js";
 
+function formatDate(value) {
+  if (!value) {
+    return "Sin lecturas todavía";
+  }
+
+  return new Intl.DateTimeFormat("es", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value));
+}
+
+function chapterProgressPercent(chapter) {
+  if (!chapter.progress || chapter.pageCount === 0) {
+    return 0;
+  }
+
+  return Math.min(
+    100,
+    Math.round(((chapter.progress.currentPageIndex + 1) / chapter.pageCount) * 100)
+  );
+}
+
 export function MangaDetailPage({ mangaId, onNavigate }) {
   const [state, setState] = useState({
     loading: true,
@@ -136,6 +161,9 @@ export function MangaDetailPage({ mangaId, onNavigate }) {
     return <p className="status-card error">{state.error}</p>;
   }
 
+  const chapters = state.manga.chapters;
+  const firstChapter = chapters[0];
+
   return (
     <section className="page-section">
       <button className="text-button" onClick={() => onNavigate("/")}>
@@ -157,21 +185,46 @@ export function MangaDetailPage({ mangaId, onNavigate }) {
           <p className="eyebrow">Manga</p>
           <h1>{state.manga.title}</h1>
           <p className="hero-copy">
-            {state.manga.chapters.length} capitulo
+            {state.manga.chapters.length} capítulo
             {state.manga.chapters.length === 1 ? "" : "s"} disponible
             {state.manga.chapters.length === 1 ? "" : "s"}.
           </p>
-          <form className="inline-edit-form" onSubmit={handleSaveMangaTitle}>
-            <label>
-              Título del manga
-              <input
-                value={mangaTitleDraft}
-                onChange={(event) => setMangaTitleDraft(event.target.value)}
-              />
-            </label>
-            <button type="submit">Guardar título</button>
-          </form>
+          <dl className="detail-stats">
+            <div>
+              <dt>Páginas</dt>
+              <dd>{state.manga.totalPageCount}</dd>
+            </div>
+            <div>
+              <dt>Progreso</dt>
+              <dd>{state.manga.progressPercent}%</dd>
+            </div>
+            <div>
+              <dt>Última lectura</dt>
+              <dd>{formatDate(state.manga.lastReadAt)}</dd>
+            </div>
+          </dl>
+          <details className="edit-panel">
+            <summary>Editar título</summary>
+            <form className="inline-edit-form" onSubmit={handleSaveMangaTitle}>
+              <label>
+                Título del manga
+                <input
+                  value={mangaTitleDraft}
+                  onChange={(event) => setMangaTitleDraft(event.target.value)}
+                />
+              </label>
+              <button type="submit">Guardar</button>
+            </form>
+          </details>
           <div className="detail-actions">
+            {firstChapter ? (
+              <button
+                className="accent-button"
+                onClick={() => onNavigate(`/chapter/${firstChapter.id}?start=1`)}
+              >
+                Leer desde inicio
+              </button>
+            ) : null}
             <button
               className="primary-button"
               onClick={() => onNavigate(`/upload?mangaId=${state.manga.id}`)}
@@ -188,41 +241,55 @@ export function MangaDetailPage({ mangaId, onNavigate }) {
       {state.message ? <p className="success">{state.message}</p> : null}
 
       <div className="chapter-list">
-        {state.manga.chapters.map((chapter) => (
+        {chapters.map((chapter) => (
           <article className="chapter-row" key={chapter.id}>
             <div>
               <h2>{chapter.title}</h2>
               <p>
-                {chapter.pageCount} pagina{chapter.pageCount === 1 ? "" : "s"}
+                {chapter.pageCount} página{chapter.pageCount === 1 ? "" : "s"}
                 {chapter.progress
-                  ? ` · progreso en página ${chapter.progress.currentPageIndex + 1}`
+                  ? ` · ${chapterProgressPercent(chapter)}% leído · página ${chapter.progress.currentPageIndex + 1}`
                   : ""}
               </p>
-              <form
-                className="inline-edit-form compact"
-                onSubmit={(event) => handleSaveChapterTitle(event, chapter)}
-              >
-                <label>
-                  Título
-                  <input
-                    value={chapterTitleDrafts[chapter.id] ?? chapter.title}
-                    onChange={(event) => {
-                      setChapterTitleDrafts((current) => ({
-                        ...current,
-                        [chapter.id]: event.target.value
-                      }));
-                    }}
-                  />
-                </label>
-                <button type="submit">Guardar</button>
-              </form>
+              <div className="mini-progress" aria-label={`Progreso ${chapterProgressPercent(chapter)}%`}>
+                <span style={{ width: `${chapterProgressPercent(chapter)}%` }} />
+              </div>
+              <details className="edit-panel compact">
+                <summary>Editar título</summary>
+                <form
+                  className="inline-edit-form compact"
+                  onSubmit={(event) => handleSaveChapterTitle(event, chapter)}
+                >
+                  <label>
+                    Título
+                    <input
+                      value={chapterTitleDrafts[chapter.id] ?? chapter.title}
+                      onChange={(event) => {
+                        setChapterTitleDrafts((current) => ({
+                          ...current,
+                          [chapter.id]: event.target.value
+                        }));
+                      }}
+                    />
+                  </label>
+                  <button type="submit">Guardar</button>
+                </form>
+              </details>
             </div>
             <div className="chapter-actions">
+              {chapter.progress ? (
+                <button
+                  className="accent-button"
+                  onClick={() => onNavigate(`/chapter/${chapter.id}`)}
+                >
+                  Continuar
+                </button>
+              ) : null}
               <button
-                className={chapter.progress ? "accent-button" : "primary-button"}
-                onClick={() => onNavigate(`/chapter/${chapter.id}`)}
+                className="primary-button"
+                onClick={() => onNavigate(`/chapter/${chapter.id}?start=1`)}
               >
-                {chapter.progress ? "Continuar" : "Leer"}
+                Leer desde inicio
               </button>
               <button className="danger-button" onClick={() => handleDeleteChapter(chapter)}>
                 Borrar

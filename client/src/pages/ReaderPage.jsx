@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getChapter, imageUrl, saveProgress } from "../api.js";
 
-export function ReaderPage({ chapterId, onNavigate }) {
+export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }) {
   const [state, setState] = useState({
     loading: true,
     error: "",
@@ -28,7 +28,7 @@ export function ReaderPage({ chapterId, onNavigate }) {
         }
 
         const pageCount = data.pages.length;
-        const savedIndex = data.progress?.currentPageIndex ?? 0;
+        const savedIndex = startFromBeginning ? 0 : data.progress?.currentPageIndex ?? 0;
         const safeIndex = Math.min(Math.max(savedIndex, 0), Math.max(pageCount - 1, 0));
         setState({ loading: false, error: "", data });
         setMode(data.progress?.mode || "page");
@@ -47,7 +47,7 @@ export function ReaderPage({ chapterId, onNavigate }) {
     return () => {
       alive = false;
     };
-  }, [chapterId]);
+  }, [chapterId, startFromBeginning]);
 
   useEffect(() => {
     setJumpValue(String(currentPageIndex + 1));
