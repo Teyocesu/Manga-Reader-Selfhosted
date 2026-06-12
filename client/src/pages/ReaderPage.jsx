@@ -4,6 +4,7 @@ import { AuthenticatedImage } from "../components/AuthenticatedImage.jsx";
 
 const READER_MODE_KEY = "manga-reader.reader-mode";
 const READER_IMMERSIVE_KEY = "manga-reader.reader-immersive";
+const READER_IMMERSIVE_MENU_KEY = "manga-reader.reader-immersive-menu-open";
 
 function loadPreferredMode() {
   return window.localStorage.getItem(READER_MODE_KEY) === "webtoon" ? "webtoon" : "page";
@@ -11,6 +12,10 @@ function loadPreferredMode() {
 
 function loadPreferredImmersive() {
   return window.localStorage.getItem(READER_IMMERSIVE_KEY) === "1";
+}
+
+function loadPreferredImmersiveMenu() {
+  return window.localStorage.getItem(READER_IMMERSIVE_MENU_KEY) === "1";
 }
 
 export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }) {
@@ -23,6 +28,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [jumpValue, setJumpValue] = useState("1");
   const [isImmersive, setIsImmersive] = useState(loadPreferredImmersive);
+  const [isImmersiveMenuOpen, setIsImmersiveMenuOpen] = useState(loadPreferredImmersiveMenu);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [saveState, setSaveState] = useState("");
   const [failedPageIds, setFailedPageIds] = useState(() => new Set());
@@ -75,6 +81,13 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
   useEffect(() => {
     window.localStorage.setItem(READER_IMMERSIVE_KEY, isImmersive ? "1" : "0");
   }, [isImmersive]);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      READER_IMMERSIVE_MENU_KEY,
+      isImmersiveMenuOpen ? "1" : "0"
+    );
+  }, [isImmersiveMenuOpen]);
 
   useEffect(() => {
     if (!readyRef.current || !state.data) {
@@ -360,14 +373,30 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
       </form>
 
       {isImmersive ? (
-        <div className="reader-floating-controls">
-          <button onClick={() => setIsImmersive(false)}>Mostrar UI</button>
-          <button onClick={toggleFullscreen} disabled={!document.fullscreenEnabled}>
-            {isFullscreen ? "Salir" : "Pantalla completa"}
+        <div className={`reader-immersive-dock ${isImmersiveMenuOpen ? "open" : "collapsed"}`}>
+          {isImmersiveMenuOpen ? (
+            <div className="reader-immersive-menu">
+              <button onClick={() => setIsImmersive(false)}>Mostrar UI</button>
+              <button onClick={toggleFullscreen} disabled={!document.fullscreenEnabled}>
+                {isFullscreen ? "Salir pantalla completa" : "Pantalla completa"}
+              </button>
+              <button onClick={() => setIsImmersiveMenuOpen(false)}>Cerrar</button>
+            </div>
+          ) : null}
+          <button
+            aria-label={isImmersiveMenuOpen ? "Plegar controles" : "Desplegar controles"}
+            className="reader-immersive-tab"
+            onClick={() => setIsImmersiveMenuOpen((value) => !value)}
+            type="button"
+          >
+            <span
+              className="reader-immersive-progress"
+              style={{ height: `${progressPercent}%` }}
+            />
+            <span className="reader-immersive-chevron" aria-hidden="true">
+              {isImmersiveMenuOpen ? "<<" : ">>"}
+            </span>
           </button>
-          <span>
-            {currentPageIndex + 1}/{pageCount} · {progressPercent}%
-          </span>
         </div>
       ) : null}
 
