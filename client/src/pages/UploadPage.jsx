@@ -151,7 +151,7 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
   return (
     <section className="page-section upload-layout">
       <div className="upload-intro">
-        <p className="eyebrow">Upload local</p>
+        <p className="eyebrow">Importación local</p>
         <h1>{importMode === "existing" ? "Subir continuación" : "Importar manga"}</h1>
         <p className="hero-copy">
           Cargá un archivo propio, el servidor lo valida y guarda capítulos o
@@ -234,7 +234,7 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
         </label>
 
         <label>
-          Archivo `.zip`, `.cbz`, `.rar` o `.cbr`
+          Archivo .zip, .cbz, .rar o .cbr
           <span className="file-drop">
             <strong>Elegir archivo</strong>
             <small>Formatos locales soportados, sin descargas externas</small>
