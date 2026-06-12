@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { AppErrorBoundary } from "./components/AppErrorBoundary.jsx";
 import { AppHeader } from "./components/AppHeader.jsx";
 import { getAuthStatus } from "./api.js";
 import { AccessPage } from "./pages/AccessPage.jsx";
@@ -8,11 +9,19 @@ import { ReaderPage } from "./pages/ReaderPage.jsx";
 import { UploadPage } from "./pages/UploadPage.jsx";
 
 function getRoute() {
-  return window.location.hash.replace(/^#/, "") || "/";
+  try {
+    return window.location.hash.replace(/^#/, "") || "/";
+  } catch {
+    return "/";
+  }
 }
 
 function navigate(path) {
-  window.location.hash = path;
+  try {
+    window.location.hash = path;
+  } catch {
+    window.location.href = `/#${path}`;
+  }
 }
 
 export default function App() {
@@ -81,9 +90,9 @@ export default function App() {
   }
 
   return (
-    <>
+    <AppErrorBoundary onReset={() => navigate("/")} route={route}>
       <AppHeader onNavigate={navigate} />
       <main className="app-shell">{page}</main>
-    </>
+    </AppErrorBoundary>
   );
 }

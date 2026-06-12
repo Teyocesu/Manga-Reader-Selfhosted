@@ -231,6 +231,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
   const webtoonStyle = readerZoom === "fit-width"
     ? undefined
     : { width: `min(${readerZoom}%, 1180px)` };
+  const canFullscreen = Boolean(document.fullscreenEnabled);
 
   function previousPage() {
     if (pageCount === 0) {
@@ -290,6 +291,11 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
   }
 
   function goToPage(pageNumber) {
+    if (pageCount === 0) {
+      setJumpValue("1");
+      return;
+    }
+
     const targetPage = Number.parseInt(pageNumber, 10);
     if (!Number.isInteger(targetPage)) {
       setJumpValue(String(currentPageIndex + 1));
@@ -330,7 +336,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
   }
 
   async function toggleFullscreen() {
-    if (!document.fullscreenEnabled) {
+    if (!canFullscreen) {
       return;
     }
 
@@ -390,7 +396,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
           <button onClick={() => setIsImmersive((value) => !value)}>
             {isImmersive ? "Mostrar UI" : "Modo inmersivo"}
           </button>
-          <button onClick={toggleFullscreen} disabled={!document.fullscreenEnabled}>
+          <button onClick={toggleFullscreen} disabled={!canFullscreen}>
             {isFullscreen ? "Salir pantalla completa" : "Pantalla completa"}
           </button>
         </div>
@@ -444,7 +450,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
                 </button>
               </div>
               <button onClick={() => setIsImmersive(false)}>Mostrar UI</button>
-              <button onClick={toggleFullscreen} disabled={!document.fullscreenEnabled}>
+              <button onClick={toggleFullscreen} disabled={!canFullscreen}>
                 {isFullscreen ? "Salir pantalla completa" : "Pantalla completa"}
               </button>
               <button onClick={() => setIsImmersiveMenuOpen(false)}>Cerrar</button>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getLibrary, imageUrl } from "../api.js";
 import { MangaThumbnail } from "../components/MangaThumbnail.jsx";
+import { readPreference, writePreference } from "../utils/preferences.js";
 
 const LIBRARY_SORT_KEY = "manga-reader.library-sort";
 
@@ -12,7 +13,7 @@ const SORT_OPTIONS = [
 ];
 
 function loadStoredSort() {
-  const stored = window.localStorage.getItem(LIBRARY_SORT_KEY);
+  const stored = readPreference(LIBRARY_SORT_KEY, "recent");
   return SORT_OPTIONS.some((option) => option.value === stored) ? stored : "recent";
 }
 
@@ -111,7 +112,7 @@ export function LibraryPage({ onNavigate }) {
   }, []);
 
   useEffect(() => {
-    window.localStorage.setItem(LIBRARY_SORT_KEY, sortBy);
+    writePreference(LIBRARY_SORT_KEY, sortBy);
   }, [sortBy]);
 
   const continueMangas = useMemo(
