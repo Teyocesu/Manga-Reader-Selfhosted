@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { getChapter, imageUrl, saveProgress } from "../api.js";
+import { AuthenticatedImage } from "../components/AuthenticatedImage.jsx";
 
 const READER_MODE_KEY = "manga-reader.reader-mode";
 const READER_IMMERSIVE_KEY = "manga-reader.reader-immersive";
@@ -381,7 +382,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
             onPointerUp={handlePointerUp}
           >
             {currentPage && !currentPageFailed ? (
-              <img
+              <AuthenticatedImage
                 src={imageUrl(currentPage.imageUrl)}
                 alt={`Página ${currentPageIndex + 1}`}
                 onError={() => markPageFailed(currentPage.id)}
@@ -436,7 +437,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
                   No se pudo cargar el archivo de la página {index + 1} desde storage.
                 </p>
               ) : (
-                <img
+                <AuthenticatedImage
                   alt={`Página ${index + 1}`}
                   onError={() => markPageFailed(page.id)}
                   src={imageUrl(page.imageUrl)}

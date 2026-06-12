@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { AuthenticatedImage } from "./AuthenticatedImage.jsx";
 
 function initials(title) {
   return String(title || "MR").trim().slice(0, 2).toUpperCase() || "MR";
@@ -22,7 +23,7 @@ export function MangaThumbnail({
   }
 
   return (
-    <img
+    <AuthenticatedImage
       alt=""
       aria-label={`Portada de ${title}`}
       className={className}
