@@ -604,6 +604,7 @@ h2 {
 .reader-page {
   width: min(100%, 1280px);
   margin: 0 auto;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .reader-page:fullscreen {
@@ -613,7 +614,7 @@ h2 {
 
 .reader-topbar {
   position: sticky;
-  top: 72px;
+  top: calc(72px + env(safe-area-inset-top));
   z-index: 15;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto auto;
@@ -711,7 +712,7 @@ h2 {
 
 .reader-floating-controls {
   position: fixed;
-  top: 14px;
+  top: max(14px, env(safe-area-inset-top));
   left: 50%;
   z-index: 40;
   width: min(calc(100% - 24px), 620px);
@@ -745,11 +746,14 @@ h2 {
 }
 
 .page-frame {
+  position: relative;
   min-height: 68vh;
   display: grid;
   place-items: center;
   border-radius: 16px;
   background: #030407;
+  touch-action: pan-y;
+  user-select: none;
 }
 
 .page-frame img,
@@ -765,11 +769,47 @@ h2 {
   object-fit: contain;
 }
 
+.tap-zones {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 28% 44% 28%;
+}
+
+.tap-zone {
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.tap-zone:hover {
+  transform: none;
+  background: transparent;
+  border-color: transparent;
+}
+
+.tap-zone:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.missing-page {
+  margin: 0;
+  padding: 24px;
+  color: #fecaca;
+  font-weight: 900;
+  text-align: center;
+}
+
 .webtoon-reader {
   width: min(100%, 900px);
   margin: 0 auto;
   display: grid;
   gap: 4px;
+  scroll-margin-top: 96px;
 }
 
 .webtoon-reader img {
@@ -903,7 +943,8 @@ h2 {
   }
 
   .reader-topbar {
-    top: 116px;
+    top: calc(116px + env(safe-area-inset-top));
+    padding: 10px;
   }
 
   .page-reader {
@@ -912,10 +953,11 @@ h2 {
 
   .reader-nav-button {
     width: 100%;
+    min-height: 56px;
   }
 
   .page-frame {
-    min-height: 58vh;
+    min-height: 64vh;
     order: 1;
   }
 
@@ -928,18 +970,22 @@ h2 {
   }
 
   .page-frame img {
-    max-height: 72vh;
+    max-height: 74vh;
   }
 
   .reader-floating-controls {
     top: auto;
-    bottom: 10px;
+    bottom: max(10px, env(safe-area-inset-bottom));
     flex-wrap: wrap;
   }
 
   .reader-page.immersive .reader-nav-button {
     top: auto;
-    bottom: 78px;
+    bottom: calc(78px + env(safe-area-inset-bottom));
     min-width: 0;
+  }
+
+  .reader-page.immersive .page-frame img {
+    max-height: 100dvh;
   }
 }

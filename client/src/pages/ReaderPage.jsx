@@ -16,6 +16,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
   const imageRefs = useRef([]);
   const readerRef = useRef(null);
   const readyRef = useRef(false);
+  const pointerStartRef = useRef(null);
 
   useEffect(() => {
     let alive = true;
@@ -172,6 +173,39 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
     setCurrentPageIndex((value) => Math.min(pageCount - 1, value + 1));
   }
 
+  function handlePointerDown(event) {
+    if (mode !== "page") {
+      return;
+    }
+
+    pointerStartRef.current = {
+      x: event.clientX,
+      y: event.clientY
+    };
+  }
+
+  function handlePointerUp(event) {
+    if (mode !== "page" || !pointerStartRef.current) {
+      pointerStartRef.current = null;
+      return;
+    }
+
+    const deltaX = event.clientX - pointerStartRef.current.x;
+    const deltaY = event.clientY - pointerStartRef.current.y;
+    pointerStartRef.current = null;
+
+    if (Math.abs(deltaX) < 52 || Math.abs(deltaY) > 90) {
+      return;
+    }
+
+    if (deltaX < 0) {
+      nextPage();
+      return;
+    }
+
+    previousPage();
+  }
+
   function goToPage(pageNumber) {
     const targetPage = Number.parseInt(pageNumber, 10);
     if (!Number.isInteger(targetPage)) {
@@ -301,8 +335,38 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
           <button className="reader-nav-button" onClick={previousPage} disabled={currentPageIndex === 0}>
             Anterior
           </button>
-          <div className="page-frame">
-            <img src={imageUrl(currentPage.imageUrl)} alt={`Pagina ${currentPageIndex + 1}`} />
+          <div
+            className="page-frame"
+            onPointerDown={handlePointerDown}
+            onPointerUp={handlePointerUp}
+          >
+            {currentPage ? (
+              <img src={imageUrl(currentPage.imageUrl)} alt={`Página ${currentPageIndex + 1}`} />
+            ) : (
+              <p className="missing-page">No hay imagen para esta página.</p>
+            )}
+            <div className="tap-zones" aria-label="Controles táctiles">
+              <button
+                aria-label="Página anterior"
+                className="tap-zone left"
+                disabled={currentPageIndex === 0}
+                onClick={previousPage}
+                type="button"
+              />
+              <button
+                aria-label={isImmersive ? "Mostrar controles" : "Ocultar controles"}
+                className="tap-zone center"
+                onClick={() => setIsImmersive((value) => !value)}
+                type="button"
+              />
+              <button
+                aria-label="Página siguiente"
+                className="tap-zone right"
+                disabled={currentPageIndex >= pageCount - 1}
+                onClick={nextPage}
+                type="button"
+              />
+            </div>
           </div>
           <button className="reader-nav-button" onClick={nextPage} disabled={currentPageIndex >= pageCount - 1}>
             Siguiente
