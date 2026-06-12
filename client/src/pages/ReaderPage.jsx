@@ -102,6 +102,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [saveState, setSaveState] = useState("");
   const [failedPageIds, setFailedPageIds] = useState(() => new Set());
+  const [loadedPageIds, setLoadedPageIds] = useState(() => new Set());
   const imageRefs = useRef([]);
   const readerRef = useRef(null);
   const readyRef = useRef(false);
@@ -111,6 +112,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
     let alive = true;
     readyRef.current = false;
     setFailedPageIds(new Set());
+    setLoadedPageIds(new Set());
 
     getChapter(chapterId)
       .then((data) => {
@@ -298,6 +300,18 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
 
   function markPageFailed(pageId) {
     setFailedPageIds((current) => {
+      const next = new Set(current);
+      next.add(pageId);
+      return next;
+    });
+  }
+
+  function markPageLoaded(pageId) {
+    setLoadedPageIds((current) => {
+      if (current.has(pageId)) {
+        return current;
+      }
+
       const next = new Set(current);
       next.add(pageId);
       return next;
@@ -605,7 +619,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
                     Reintentar
                   </button>
                 </p>
-              ) : !shouldLoadWebtoonPage(index, currentPageIndex) ? (
+              ) : !loadedPageIds.has(page.id) && !shouldLoadWebtoonPage(index, currentPageIndex) ? (
                 <p className="missing-page deferred-page">Página {index + 1}</p>
               ) : (
                 <AuthenticatedImage
@@ -615,6 +629,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
                   fallback={<p className="missing-page loading-page">Cargando página {index + 1}...</p>}
                   loading="lazy"
                   onError={() => markPageFailed(page.id)}
+                  onLoad={() => markPageLoaded(page.id)}
                   src={imageUrl(page.imageUrl)}
                 />
               )}
