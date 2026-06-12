@@ -1,5 +1,83 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getLibrary, imageUrl } from "../api.js";
+
+const LIBRARY_SORT_KEY = "manga-reader.library-sort";
+
+const SORT_OPTIONS = [
+  { value: "recent", label: "Actualizado recientemente" },
+  { value: "alpha", label: "Alfabético" },
+  { value: "chapters", label: "Más capítulos" },
+  { value: "pending", label: "Progreso pendiente" }
+];
+
+function loadStoredSort() {
+  const stored = window.localStorage.getItem(LIBRARY_SORT_KEY);
+  return SORT_OPTIONS.some((option) => option.value === stored) ? stored : "recent";
+}
+
+function formatDate(value) {
+  if (!value) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat("es", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric"
+  }).format(new Date(value));
+}
+
+function isPending(manga) {
+  return manga.totalPageCount > 0 && manga.progressPercent > 0 && manga.progressPercent < 100;
+}
+
+function MangaCard({ manga, onNavigate, featured = false }) {
+  return (
+    <article className={featured ? "manga-card continue-card" : "manga-card"}>
+      <button className="cover-button" onClick={() => onNavigate(`/manga/${manga.id}`)}>
+        {manga.thumbnailUrl ? (
+          <img
+            alt={`Portada de ${manga.title}`}
+            className="cover-image"
+            loading="lazy"
+            src={imageUrl(manga.thumbnailUrl)}
+          />
+        ) : (
+          <span className="cover-placeholder">{manga.title.slice(0, 2).toUpperCase()}</span>
+        )}
+      </button>
+      <div className="manga-card-body">
+        <h2>{manga.title}</h2>
+        <p>
+          {manga.chapterCount} capítulo{manga.chapterCount === 1 ? "" : "s"} ·{" "}
+          {manga.progressPercent}% leído
+        </p>
+        <div className="mini-progress" aria-label={`Progreso ${manga.progressPercent}%`}>
+          <span style={{ width: `${manga.progressPercent}%` }} />
+        </div>
+        {manga.continueChapter ? (
+          <p className="last-read">
+            Último: {manga.continueChapter.title}
+            {manga.lastReadAt ? ` · ${formatDate(manga.lastReadAt)}` : ""}
+          </p>
+        ) : (
+          <p className="last-read">Sin progreso todavía</p>
+        )}
+        <div className="card-actions">
+          <button onClick={() => onNavigate(`/manga/${manga.id}`)}>Ver</button>
+          {manga.continueChapter ? (
+            <button
+              className="accent-button"
+              onClick={() => onNavigate(`/chapter/${manga.continueChapter.id}`)}
+            >
+              Continuar
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </article>
+  );
+}
 
 export function LibraryPage({ onNavigate }) {
   const [state, setState] = useState({
@@ -7,6 +85,8 @@ export function LibraryPage({ onNavigate }) {
     error: "",
     mangas: []
   });
+  const [query, setQuery] = useState("");
+  const [sortBy, setSortBy] = useState(loadStoredSort);
 
   useEffect(() => {
     let alive = true;
@@ -17,9 +97,13 @@ export function LibraryPage({ onNavigate }) {
           setState({ loading: false, error: "", mangas: data.mangas });
         }
       })
-      .catch((error) => {
+      .catch(() => {
         if (alive) {
-          setState({ loading: false, error: error.message, mangas: [] });
+          setState({
+            loading: false,
+            error: "No se pudo cargar la biblioteca. Revisá que el servidor esté corriendo.",
+            mangas: []
+          });
         }
       });
 
@@ -28,8 +112,56 @@ export function LibraryPage({ onNavigate }) {
     };
   }, []);
 
+  useEffect(() => {
+    window.localStorage.setItem(LIBRARY_SORT_KEY, sortBy);
+  }, [sortBy]);
+
+  const continueMangas = useMemo(
+    () =>
+      state.mangas
+        .filter((manga) => manga.continueChapter)
+        .sort((a, b) => new Date(b.lastReadAt || 0) - new Date(a.lastReadAt || 0))
+        .slice(0, 4),
+    [state.mangas]
+  );
+
+  const filteredMangas = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    const mangas = state.mangas.filter((manga) =>
+      manga.title.toLowerCase().includes(normalizedQuery)
+    );
+
+    return [...mangas].sort((a, b) => {
+      if (sortBy === "alpha") {
+        return a.title.localeCompare(b.title, "es", { numeric: true, sensitivity: "base" });
+      }
+
+      if (sortBy === "chapters") {
+        return b.chapterCount - a.chapterCount || a.title.localeCompare(b.title, "es");
+      }
+
+      if (sortBy === "pending") {
+        return (
+          Number(isPending(b)) - Number(isPending(a)) ||
+          a.progressPercent - b.progressPercent ||
+          new Date(b.lastReadAt || b.updatedAt) - new Date(a.lastReadAt || a.updatedAt)
+        );
+      }
+
+      return new Date(b.updatedAt) - new Date(a.updatedAt);
+    });
+  }, [query, sortBy, state.mangas]);
+
   if (state.loading) {
-    return <p className="status-card">Cargando biblioteca...</p>;
+    return (
+      <section className="page-section">
+        <div className="status-card">
+          <p className="eyebrow">Biblioteca</p>
+          <h2>Cargando tu colección...</h2>
+          <p className="muted">Estoy preparando mangas, progreso y portadas.</p>
+        </div>
+      </section>
+    );
   }
 
   if (state.error) {
@@ -43,63 +175,84 @@ export function LibraryPage({ onNavigate }) {
           <p className="eyebrow">Biblioteca local</p>
           <h1>Tu colección manga/manhwa</h1>
           <p className="hero-copy">
-            Organizá tus archivos propios y retomá la lectura desde cualquier
-            dispositivo en tu Wi-Fi.
+            Buscá, ordená y retomá tus lecturas desde Mac o iPhone.
           </p>
         </div>
         <button className="primary-button" onClick={() => onNavigate("/upload")}>
-          Subir capitulo
+          Subir capítulo
         </button>
       </div>
 
       {state.mangas.length === 0 ? (
         <div className="empty-state">
           <div className="empty-cover" aria-hidden="true">MR</div>
-          <h2>No hay mangas todavia</h2>
-          <p>Subi tu primer `.zip`, `.cbz`, `.rar` o `.cbr` para empezar.</p>
+          <h2>Tu biblioteca está vacía</h2>
+          <p>Subí tu primer `.zip`, `.cbz`, `.rar` o `.cbr` para empezar.</p>
           <button className="primary-button" onClick={() => onNavigate("/upload")}>
             Subir archivo
           </button>
         </div>
       ) : (
-        <div className="manga-grid">
-          {state.mangas.map((manga) => (
-            <article className="manga-card" key={manga.id}>
-              <button className="cover-button" onClick={() => onNavigate(`/manga/${manga.id}`)}>
-                {manga.thumbnailUrl ? (
-                  <img
-                    alt={`Portada de ${manga.title}`}
-                    className="cover-image"
-                    loading="lazy"
-                    src={imageUrl(manga.thumbnailUrl)}
-                  />
-                ) : (
-                  <span className="cover-placeholder">{manga.title.slice(0, 2).toUpperCase()}</span>
-                )}
-              </button>
-              <div className="manga-card-body">
-                <h2>{manga.title}</h2>
-                <p>
-                  {manga.chapterCount} capitulo{manga.chapterCount === 1 ? "" : "s"}
-                  {manga.lastReadAt && manga.continueChapter
-                    ? ` · último leído: ${manga.continueChapter.title}`
-                    : ""}
-                </p>
-                <div className="card-actions">
-                  <button onClick={() => onNavigate(`/manga/${manga.id}`)}>Ver</button>
-                  {manga.continueChapter ? (
-                    <button
-                      className="accent-button"
-                      onClick={() => onNavigate(`/chapter/${manga.continueChapter.id}`)}
-                    >
-                      Continuar
-                    </button>
-                  ) : null}
+        <>
+          {continueMangas.length > 0 ? (
+            <section className="library-block">
+              <div className="section-heading">
+                <div>
+                  <p className="eyebrow">Retomar</p>
+                  <h2>Continuar leyendo</h2>
                 </div>
               </div>
-            </article>
-          ))}
-        </div>
+              <div className="continue-grid">
+                {continueMangas.map((manga) => (
+                  <MangaCard featured key={manga.id} manga={manga} onNavigate={onNavigate} />
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          <section className="library-block">
+            <div className="section-heading library-toolbar-heading">
+              <div>
+                <p className="eyebrow">Colección</p>
+                <h2>Biblioteca</h2>
+              </div>
+              <div className="library-toolbar">
+                <label>
+                  Buscar
+                  <input
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Chainsaw, tomo, manhwa..."
+                    type="search"
+                    value={query}
+                  />
+                </label>
+                <label>
+                  Ordenar
+                  <select onChange={(event) => setSortBy(event.target.value)} value={sortBy}>
+                    {SORT_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            {filteredMangas.length === 0 ? (
+              <div className="empty-state compact-empty">
+                <h2>No encontré mangas con ese título</h2>
+                <p>Probá con otra búsqueda o limpiá el campo.</p>
+              </div>
+            ) : (
+              <div className="manga-grid">
+                {filteredMangas.map((manga) => (
+                  <MangaCard key={manga.id} manga={manga} onNavigate={onNavigate} />
+                ))}
+              </div>
+            )}
+          </section>
+        </>
       )}
     </section>
   );

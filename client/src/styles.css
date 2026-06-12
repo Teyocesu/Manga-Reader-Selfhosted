@@ -285,6 +285,43 @@ h2 {
   gap: 18px;
 }
 
+.library-block {
+  margin-top: 28px;
+}
+
+.section-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 14px;
+}
+
+.library-toolbar-heading {
+  align-items: start;
+}
+
+.library-toolbar {
+  width: min(100%, 560px);
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(160px, 0.75fr);
+  gap: 10px;
+}
+
+.library-toolbar label {
+  display: grid;
+  gap: 6px;
+  color: #aab2c5;
+  font-size: 0.9rem;
+  font-weight: 850;
+}
+
+.continue-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
 .manga-card {
   min-width: 0;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -292,6 +329,17 @@ h2 {
   background: rgba(18, 22, 35, 0.82);
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.24);
   overflow: hidden;
+}
+
+.continue-card {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  min-height: 154px;
+}
+
+.continue-card .cover-placeholder,
+.continue-card .cover-image {
+  min-height: 154px;
 }
 
 .cover-button {
@@ -326,10 +374,36 @@ h2 {
   margin: 8px 0 14px;
 }
 
+.last-read {
+  min-height: 2.4em;
+  font-size: 0.92rem;
+}
+
+.mini-progress {
+  height: 6px;
+  margin: 10px 0;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.mini-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #14b8a6, #ef4444);
+}
+
 .card-actions {
   display: grid;
   grid-template-columns: 1fr;
   gap: 8px;
+}
+
+.compact-empty {
+  width: 100%;
+  margin-top: 0;
+  padding: 22px;
 }
 
 .upload-layout {
@@ -752,6 +826,21 @@ h2 {
   .manga-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
+  }
+
+  .section-heading,
+  .library-toolbar,
+  .continue-card {
+    grid-template-columns: 1fr;
+  }
+
+  .section-heading {
+    display: grid;
+  }
+
+  .continue-card .cover-placeholder,
+  .continue-card .cover-image {
+    min-height: 0;
   }
 
   .manga-card-body {

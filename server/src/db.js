@@ -65,6 +65,9 @@ try {
 }
 
 function rowToManga(row) {
+  const totalPageCount = row.total_page_count ?? 0;
+  const readPageCount = row.read_page_count ?? 0;
+
   return {
     id: row.id,
     title: row.title,
@@ -73,6 +76,11 @@ function rowToManga(row) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     chapterCount: row.chapter_count ?? 0,
+    totalPageCount,
+    readPageCount,
+    progressPercent: totalPageCount > 0
+      ? Math.min(100, Math.round((readPageCount / totalPageCount) * 100))
+      : 0,
     lastReadAt: row.last_read_at ?? null
   };
 }
@@ -127,13 +135,32 @@ function now() {
 
 export function listLibrary() {
   const rows = db.prepare(`
+    WITH chapter_stats AS (
+      SELECT
+        chapters.id,
+        chapters.manga_id,
+        COUNT(pages.id) AS page_count,
+        reading_progress.current_page_index,
+        reading_progress.updated_at AS progress_updated_at
+      FROM chapters
+      LEFT JOIN pages ON pages.chapter_id = chapters.id
+      LEFT JOIN reading_progress ON reading_progress.chapter_id = chapters.id
+      GROUP BY chapters.id
+    )
     SELECT
       mangas.*,
-      COUNT(chapters.id) AS chapter_count,
-      MAX(reading_progress.updated_at) AS last_read_at
+      COUNT(chapter_stats.id) AS chapter_count,
+      COALESCE(SUM(chapter_stats.page_count), 0) AS total_page_count,
+      COALESCE(SUM(
+        CASE
+          WHEN chapter_stats.current_page_index IS NULL THEN 0
+          WHEN chapter_stats.page_count = 0 THEN 0
+          ELSE min(chapter_stats.current_page_index + 1, chapter_stats.page_count)
+        END
+      ), 0) AS read_page_count,
+      MAX(chapter_stats.progress_updated_at) AS last_read_at
     FROM mangas
-    LEFT JOIN chapters ON chapters.manga_id = mangas.id
-    LEFT JOIN reading_progress ON reading_progress.chapter_id = chapters.id
+    LEFT JOIN chapter_stats ON chapter_stats.manga_id = mangas.id
     GROUP BY mangas.id
     ORDER BY mangas.updated_at DESC
   `).all();
@@ -194,9 +221,36 @@ export function getManga(mangaId) {
 
   chapters.sort((a, b) => collator.compare(a.title, b.title));
 
+  const mappedChapters = chapters.map(rowToChapter);
+  const totalPageCount = mappedChapters.reduce(
+    (total, chapter) => total + chapter.pageCount,
+    0
+  );
+  const readPageCount = mappedChapters.reduce((total, chapter) => {
+    if (!chapter.progress) {
+      return total;
+    }
+
+    return total + Math.min(chapter.progress.currentPageIndex + 1, chapter.pageCount);
+  }, 0);
+  const lastReadAt = mappedChapters.reduce((latest, chapter) => {
+    const updatedAt = chapter.progress?.updatedAt;
+    if (!updatedAt || (latest && latest > updatedAt)) {
+      return latest;
+    }
+
+    return updatedAt;
+  }, null);
+
   return {
-    ...rowToManga({ ...manga, chapter_count: chapters.length }),
-    chapters: chapters.map(rowToChapter)
+    ...rowToManga({
+      ...manga,
+      chapter_count: mappedChapters.length,
+      total_page_count: totalPageCount,
+      read_page_count: readPageCount,
+      last_read_at: lastReadAt
+    }),
+    chapters: mappedChapters
   };
 }
 
