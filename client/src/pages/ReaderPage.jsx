@@ -583,12 +583,6 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
                 type="button"
               />
               <button
-                aria-label={isImmersive ? "Mostrar controles" : "Ocultar controles"}
-                className="tap-zone center"
-                onClick={() => setIsImmersive((value) => !value)}
-                type="button"
-              />
-              <button
                 aria-label="Página siguiente"
                 className="tap-zone right"
                 disabled={currentPageIndex >= pageCount - 1}
