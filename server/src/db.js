@@ -30,6 +30,7 @@ db.exec(`
     title TEXT NOT NULL,
     original_filename TEXT NOT NULL,
     storage_path TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     FOREIGN KEY (manga_id) REFERENCES mangas(id) ON DELETE CASCADE
@@ -64,6 +65,57 @@ try {
   }
 }
 
+try {
+  db.exec("ALTER TABLE chapters ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0;");
+} catch (error) {
+  if (!String(error.message).includes("duplicate column name")) {
+    throw error;
+  }
+}
+
+function ensureChapterSortOrder() {
+  const mangas = db.prepare("SELECT id FROM mangas").all();
+  const chaptersByManga = db.prepare(`
+    SELECT id, title, sort_order
+    FROM chapters
+    WHERE manga_id = ?
+  `);
+  const updateOrder = db.prepare(`
+    UPDATE chapters
+    SET sort_order = ?
+    WHERE id = ?
+  `);
+
+  try {
+    db.exec("BEGIN");
+
+    for (const manga of mangas) {
+      const chapters = chaptersByManga.all(manga.id);
+      const currentOrders = chapters.map((chapter) => chapter.sort_order);
+      const hasValidOrder =
+        currentOrders.every((sortOrder) => Number.isInteger(sortOrder) && sortOrder > 0) &&
+        new Set(currentOrders).size === chapters.length;
+
+      if (hasValidOrder) {
+        continue;
+      }
+
+      chapters
+        .sort((a, b) => collator.compare(a.title, b.title))
+        .forEach((chapter, index) => {
+          updateOrder.run(index + 1, chapter.id);
+        });
+    }
+
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
+ensureChapterSortOrder();
+
 function rowToManga(row) {
   const totalPageCount = row.total_page_count ?? 0;
   const readPageCount = row.read_page_count ?? 0;
@@ -92,6 +144,7 @@ function rowToChapter(row) {
     title: row.title,
     originalFilename: row.original_filename,
     storagePath: row.storage_path,
+    sortOrder: row.sort_order ?? 0,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     pageCount: row.page_count ?? 0,
@@ -216,10 +269,8 @@ export function getManga(mangaId) {
     LEFT JOIN reading_progress ON reading_progress.chapter_id = chapters.id
     WHERE chapters.manga_id = ?
     GROUP BY chapters.id
-    ORDER BY chapters.created_at DESC
+    ORDER BY chapters.sort_order ASC, chapters.created_at ASC
   `).all(mangaId);
-
-  chapters.sort((a, b) => collator.compare(a.title, b.title));
 
   const mappedChapters = chapters.map(rowToChapter);
   const totalPageCount = mappedChapters.reduce(
@@ -282,10 +333,7 @@ export function getChapter(chapterId) {
   `).all(chapterId);
 
   return {
-    manga: {
-      id: chapter.manga_id,
-      title: chapter.manga_title
-    },
+    manga: getManga(chapter.manga_id),
     chapter: rowToChapter(chapter),
     pages: pages.map(rowToPage),
     progress: getProgress(chapterId)
@@ -642,16 +690,18 @@ export function createImportedChapter({
         title,
         original_filename,
         storage_path,
+        sort_order,
         created_at,
         updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       chapterId,
       mangaId,
       cleanTitle,
       originalFilename,
       chapterStoragePath,
+      nextChapterSortOrder(mangaId),
       createdAt,
       createdAt
     );
@@ -694,4 +744,70 @@ export function createImportedChapter({
   }
 
   return getChapter(chapterId);
+}
+
+function nextChapterSortOrder(mangaId) {
+  const row = db.prepare(`
+    SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+    FROM chapters
+    WHERE manga_id = ?
+  `).get(mangaId);
+
+  return (row?.max_sort_order ?? 0) + 1;
+}
+
+export function reorderMangaChapters(mangaId, chapterIds) {
+  const manga = db.prepare("SELECT id FROM mangas WHERE id = ?").get(mangaId);
+  if (!manga) {
+    return null;
+  }
+
+  if (!Array.isArray(chapterIds) || chapterIds.length === 0) {
+    const error = new Error("Chapter order is required");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const currentChapters = getManga(mangaId).chapters;
+  const currentIds = currentChapters.map((chapter) => chapter.id);
+  const requestedIds = chapterIds.map((chapterId) => String(chapterId));
+  const currentSet = new Set(currentIds);
+  const requestedSet = new Set(requestedIds);
+
+  if (
+    requestedIds.length !== currentIds.length ||
+    requestedSet.size !== currentIds.length ||
+    !requestedIds.every((chapterId) => currentSet.has(chapterId))
+  ) {
+    const error = new Error("Chapter order must include every chapter exactly once");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const updatedAt = now();
+  const updateChapter = db.prepare(`
+    UPDATE chapters
+    SET sort_order = ?,
+        updated_at = ?
+    WHERE id = ?
+      AND manga_id = ?
+  `);
+
+  try {
+    db.exec("BEGIN");
+    requestedIds.forEach((chapterId, index) => {
+      updateChapter.run(index + 1, updatedAt, chapterId, mangaId);
+    });
+    db.prepare(`
+      UPDATE mangas
+      SET updated_at = ?
+      WHERE id = ?
+    `).run(updatedAt, mangaId);
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+
+  return getManga(mangaId);
 }

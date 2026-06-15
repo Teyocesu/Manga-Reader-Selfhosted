@@ -8,6 +8,7 @@ import {
   getManga,
   getMangaThumbnail,
   listLibrary,
+  reorderMangaChapters,
   updateChapterTitle,
   updateMangaTitle
 } from "../db.js";
@@ -31,6 +32,19 @@ libraryRouter.get("/mangas/:mangaId", (req, res) => {
 libraryRouter.put("/mangas/:mangaId", (req, res, next) => {
   try {
     const manga = updateMangaTitle(req.params.mangaId, req.body?.title);
+    if (!manga) {
+      return res.status(404).json({ error: "Manga not found" });
+    }
+
+    res.json(manga);
+  } catch (error) {
+    next(error);
+  }
+});
+
+libraryRouter.post("/mangas/:mangaId/chapters/reorder", (req, res, next) => {
+  try {
+    const manga = reorderMangaChapters(req.params.mangaId, req.body?.chapterIds);
     if (!manga) {
       return res.status(404).json({ error: "Manga not found" });
     }

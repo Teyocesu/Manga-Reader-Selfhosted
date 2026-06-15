@@ -4,6 +4,7 @@ import {
   deleteManga,
   getManga,
   imageUrl,
+  reorderChapters,
   updateChapter,
   updateManga
 } from "../api.js";
@@ -43,6 +44,7 @@ export function MangaDetailPage({ mangaId, onNavigate }) {
   });
   const [mangaTitleDraft, setMangaTitleDraft] = useState("");
   const [chapterTitleDrafts, setChapterTitleDrafts] = useState({});
+  const [movingChapterId, setMovingChapterId] = useState("");
 
   function loadManga() {
     let alive = true;
@@ -154,6 +156,38 @@ export function MangaDetailPage({ mangaId, onNavigate }) {
     }
   }
 
+  async function handleMoveChapter(chapterIndex, direction) {
+    const chapters = state.manga.chapters;
+    const nextIndex = chapterIndex + direction;
+    if (nextIndex < 0 || nextIndex >= chapters.length) {
+      return;
+    }
+
+    const orderedChapterIds = chapters.map((chapter) => chapter.id);
+    [orderedChapterIds[chapterIndex], orderedChapterIds[nextIndex]] = [
+      orderedChapterIds[nextIndex],
+      orderedChapterIds[chapterIndex]
+    ];
+
+    setMovingChapterId(chapters[chapterIndex].id);
+    try {
+      const manga = await reorderChapters(mangaId, orderedChapterIds);
+      setState((current) => ({
+        ...current,
+        error: "",
+        message: "Orden de capítulos actualizado.",
+        manga
+      }));
+      setChapterTitleDrafts(
+        Object.fromEntries(manga.chapters.map((chapter) => [chapter.id, chapter.title]))
+      );
+    } catch (error) {
+      setState((current) => ({ ...current, error: error.message }));
+    } finally {
+      setMovingChapterId("");
+    }
+  }
+
   if (state.loading) {
     return <p className="status-card">Cargando manga...</p>;
   }
@@ -239,7 +273,7 @@ export function MangaDetailPage({ mangaId, onNavigate }) {
       {state.message ? <p className="success">{state.message}</p> : null}
 
       <div className="chapter-list">
-        {chapters.map((chapter) => (
+        {chapters.map((chapter, index) => (
           <article className="chapter-row" key={chapter.id}>
             <div>
               <h2>{chapter.title}</h2>
@@ -275,6 +309,20 @@ export function MangaDetailPage({ mangaId, onNavigate }) {
               </details>
             </div>
             <div className="chapter-actions">
+              <button
+                disabled={index === 0 || movingChapterId === chapter.id}
+                onClick={() => handleMoveChapter(index, -1)}
+                type="button"
+              >
+                Subir
+              </button>
+              <button
+                disabled={index === chapters.length - 1 || movingChapterId === chapter.id}
+                onClick={() => handleMoveChapter(index, 1)}
+                type="button"
+              >
+                Bajar
+              </button>
               {chapter.progress ? (
                 <button
                   className="accent-button"

@@ -86,6 +86,16 @@ export function updateManga(mangaId, payload) {
   });
 }
 
+export function reorderChapters(mangaId, chapterIds) {
+  return request(`/mangas/${mangaId}/chapters/reorder`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ chapterIds })
+  });
+}
+
 export function updateChapter(chapterId, payload) {
   return request(`/chapters/${chapterId}`, {
     method: "PUT",
