@@ -1034,11 +1034,12 @@ h2 {
 .reader-page-spread {
   grid-area: 1 / 1;
   width: 100%;
+  max-width: none;
   height: 100%;
   display: grid;
   place-items: center;
-  gap: 14px;
-  padding: 12px;
+  gap: 6px;
+  padding: 10px;
 }
 
 .single-page-frame .reader-page-spread {
@@ -1048,6 +1049,8 @@ h2 {
 .double-page-frame .reader-page-spread {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: center;
+  justify-content: center;
+  column-gap: 4px;
 }
 
 .reader-page-slot {
@@ -1056,6 +1059,7 @@ h2 {
   height: 100%;
   display: grid;
   place-items: center;
+  overflow: hidden;
 }
 
 .page-frame img,
