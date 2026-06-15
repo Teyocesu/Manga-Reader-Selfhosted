@@ -117,7 +117,7 @@ function nextZoom(value, direction) {
   return ZOOM_OPTIONS[Math.min(Math.max(safeIndex + direction, 0), ZOOM_OPTIONS.length - 1)];
 }
 
-function pageZoomStyle(value) {
+function pageImageZoomStyle(value) {
   if (value === "fit-width") {
     return {
       width: "100%",
@@ -133,7 +133,7 @@ function pageZoomStyle(value) {
     };
   }
 
-  return { width: `${value}%` };
+  return { width: "100%" };
 }
 
 function pageSpreadZoomStyle(value) {
@@ -143,9 +143,8 @@ function pageSpreadZoomStyle(value) {
 
   if (value === "fit-height" || value === "fit-page") {
     return {
-      width: "auto",
-      maxWidth: "100%",
-      maxHeight: "var(--reader-page-max-height)"
+      width: "fit-content",
+      maxWidth: "100%"
     };
   }
 
@@ -519,7 +518,8 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
   const remainingPages = Math.max(0, pageCount - currentPageIndex - 1);
   const hasNextPage = currentPageIndex + 1 < pageCount;
   const isDoublePageVisible = mode === "page" && spreadMode === "double" && isDesktopReader && hasNextPage;
-  const pageImageStyle = isDoublePageVisible ? pageSpreadZoomStyle(readerZoom) : pageZoomStyle(readerZoom);
+  const pageImageStyle = pageImageZoomStyle(readerZoom);
+  const pageSpreadStyle = pageSpreadZoomStyle(readerZoom);
   const webtoonStyle = webtoonZoomStyle(readerZoom);
   const canFullscreen = Boolean(document.fullscreenEnabled);
   const chapters = state.data.manga?.chapters || [];
@@ -856,7 +856,11 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
               onPointerUp={handlePointerUp}
             >
               {visibleIndexes.length > 0 ? (
-                <div className="reader-page-spread" aria-label={isDoublePageVisible ? "Doble página" : "Una página"}>
+                <div
+                  className="reader-page-spread"
+                  aria-label={isDoublePageVisible ? "Doble página" : "Una página"}
+                  style={pageSpreadStyle}
+                >
                   {visibleIndexes.map((pageIndex) => {
                     const page = pages[pageIndex];
                     const pageFailed = failedPageIds.has(page.id);
