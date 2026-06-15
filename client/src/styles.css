@@ -740,7 +740,7 @@ h2 {
   top: auto;
   z-index: 15;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto auto auto;
   gap: 14px;
   align-items: center;
   padding: 12px 14px;
@@ -797,6 +797,33 @@ h2 {
 .direction-toggle .active {
   background: var(--accent-strong);
   color: #031614;
+}
+
+.spread-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.spread-toggle button {
+  min-width: 58px;
+  min-height: 36px;
+  border: 0;
+  padding: 0 8px;
+  font-size: 0.84rem;
+}
+
+.spread-toggle .active {
+  background: var(--accent-strong);
+  color: #031614;
+}
+
+.spread-toggle button:disabled {
+  opacity: 0.45;
 }
 
 .upload-mode-toggle {
@@ -995,6 +1022,33 @@ h2 {
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.34);
 }
 
+.reader-page-spread {
+  grid-area: 1 / 1;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  gap: 14px;
+  padding: 12px;
+}
+
+.single-page-frame .reader-page-spread {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.double-page-frame .reader-page-spread {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: center;
+}
+
+.reader-page-slot {
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+
 .page-frame img,
 .webtoon-reader img {
   display: block;
@@ -1004,10 +1058,24 @@ h2 {
 
 .page-frame img,
 .reader-page-image {
-  grid-area: 1 / 1;
   width: 100%;
   max-height: var(--reader-page-max-height);
   object-fit: contain;
+}
+
+.reader-preload {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-9999px, -9999px);
+}
+
+.reader-preload img {
+  width: 1px;
+  height: 1px;
 }
 
 .tap-zones {
@@ -1198,6 +1266,10 @@ h2 {
     grid-template-columns: 1fr 1fr;
   }
 
+  .spread-toggle {
+    grid-template-columns: 1fr 1fr;
+  }
+
   .zoom-control {
     grid-template-columns: 44px minmax(0, 1fr) 44px;
   }
@@ -1321,6 +1393,13 @@ h2 {
   .page-frame {
     min-height: min(64dvh, 720px);
     order: 1;
+  }
+
+  .reader-page-spread,
+  .double-page-frame .reader-page-spread {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    padding: 8px;
   }
 
   .page-reader button:first-child {

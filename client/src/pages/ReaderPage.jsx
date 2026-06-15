@@ -1,13 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import { getChapter, imageUrl, saveProgress } from "../api.js";
 import { AuthenticatedImage } from "../components/AuthenticatedImage.jsx";
-import { readPreference, writePreference } from "../utils/preferences.js";
+import {
+  readJsonPreference,
+  readPreference,
+  writeJsonPreference,
+  writePreference
+} from "../utils/preferences.js";
 
 const READER_MODE_KEY = "manga-reader.reader-mode";
 const READER_IMMERSIVE_KEY = "manga-reader.reader-immersive";
 const READER_IMMERSIVE_MENU_KEY = "manga-reader.reader-immersive-menu-open";
 const READER_DIRECTION_KEY = "manga-reader.reader-direction";
 const READER_ZOOM_KEY = "manga-reader.reader-zoom";
+const READER_SPREAD_KEY = "manga-reader.reader-spread";
+const MANGA_SETTINGS_KEY_PREFIX = "manga-reader.manga-settings";
 const ZOOM_OPTIONS = [
   "50",
   "60",
@@ -27,6 +34,7 @@ const ZOOM_LABELS = {
 };
 const WEBTOON_MAX_ACTIVE_LOADS = 3;
 const WEBTOON_IMAGE_TIMEOUT_MS = 9000;
+const DESKTOP_DOUBLE_PAGE_QUERY = "(min-width: 900px)";
 
 function loadPreferredMode() {
   return readPreference(READER_MODE_KEY) === "webtoon" ? "webtoon" : "page";
@@ -49,6 +57,56 @@ function loadPreferredDirection() {
   return readPreference(READER_DIRECTION_KEY) === "rtl" ? "rtl" : "ltr";
 }
 
+function loadPreferredSpread() {
+  return readPreference(READER_SPREAD_KEY) === "double" ? "double" : "single";
+}
+
+function mangaSettingsKey(mangaId) {
+  return `${MANGA_SETTINGS_KEY_PREFIX}.${mangaId}`;
+}
+
+function loadMangaSettings(mangaId) {
+  if (!mangaId) {
+    return {};
+  }
+
+  const value = readJsonPreference(mangaSettingsKey(mangaId), {});
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+function writeMangaSetting(mangaId, key, value) {
+  if (!mangaId) {
+    return;
+  }
+
+  writeJsonPreference(mangaSettingsKey(mangaId), {
+    ...loadMangaSettings(mangaId),
+    [key]: value
+  });
+}
+
+function preferredModeForManga(mangaId, fallbackMode = loadPreferredMode()) {
+  const settings = loadMangaSettings(mangaId);
+  return settings.mode === "webtoon"
+    ? "webtoon"
+    : settings.mode === "page"
+      ? "page"
+      : fallbackMode;
+}
+
+function preferredZoomForManga(mangaId) {
+  const zoom = loadMangaSettings(mangaId).zoom;
+  return ZOOM_OPTIONS.includes(zoom) ? zoom : loadPreferredZoom();
+}
+
+function preferredDirectionForManga(mangaId) {
+  return loadMangaSettings(mangaId).direction === "rtl" ? "rtl" : loadPreferredDirection();
+}
+
+function preferredSpreadForManga(mangaId) {
+  return loadMangaSettings(mangaId).spread === "double" ? "double" : loadPreferredSpread();
+}
+
 function zoomLabel(value) {
   return ZOOM_LABELS[value] || `${value}%`;
 }
@@ -65,6 +123,22 @@ function pageZoomStyle(value) {
       width: "100%",
       maxHeight: "var(--reader-page-max-height)"
     };
+  }
+
+  if (value === "fit-height" || value === "fit-page") {
+    return {
+      width: "auto",
+      maxWidth: "100%",
+      maxHeight: "var(--reader-page-max-height)"
+    };
+  }
+
+  return { width: `${value}%` };
+}
+
+function pageSpreadZoomStyle(value) {
+  if (value === "fit-width") {
+    return { width: "100%" };
   }
 
   if (value === "fit-height" || value === "fit-page") {
@@ -108,6 +182,44 @@ function webtoonLoadRank(index, currentPageIndex) {
   return distance + directionBias;
 }
 
+function visiblePageIndexes(currentPageIndex, pageCount, isDoublePageVisible, readingDirection) {
+  if (pageCount === 0) {
+    return [];
+  }
+
+  const indexes = [currentPageIndex];
+  if (isDoublePageVisible && currentPageIndex + 1 < pageCount) {
+    indexes.push(currentPageIndex + 1);
+  }
+
+  return readingDirection === "rtl" ? indexes.reverse() : indexes;
+}
+
+function preloadPageIndexes(currentPageIndex, pageCount, isDoublePageVisible, isDesktopReader) {
+  if (pageCount === 0) {
+    return [];
+  }
+
+  const step = isDoublePageVisible ? 2 : 1;
+  const offsets = isDesktopReader
+    ? [-step * 2, -step, 0, step, step * 2]
+    : [-step, 0, step];
+  const indexes = new Set();
+
+  for (const offset of offsets) {
+    const baseIndex = currentPageIndex + offset;
+    if (baseIndex >= 0 && baseIndex < pageCount) {
+      indexes.add(baseIndex);
+    }
+
+    if (isDoublePageVisible && baseIndex + 1 >= 0 && baseIndex + 1 < pageCount) {
+      indexes.add(baseIndex + 1);
+    }
+  }
+
+  return [...indexes].sort((a, b) => Math.abs(a - currentPageIndex) - Math.abs(b - currentPageIndex));
+}
+
 export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }) {
   const [state, setState] = useState({
     loading: true,
@@ -121,6 +233,14 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
   const [isImmersiveMenuOpen, setIsImmersiveMenuOpen] = useState(loadPreferredImmersiveMenu);
   const [readerZoom, setReaderZoom] = useState(loadPreferredZoom);
   const [readingDirection, setReadingDirection] = useState(loadPreferredDirection);
+  const [spreadMode, setSpreadMode] = useState(loadPreferredSpread);
+  const [isDesktopReader, setIsDesktopReader] = useState(() => {
+    if (typeof window === "undefined" || !window.matchMedia) {
+      return false;
+    }
+
+    return window.matchMedia(DESKTOP_DOUBLE_PAGE_QUERY).matches;
+  });
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [saveState, setSaveState] = useState("");
   const [failedPageIds, setFailedPageIds] = useState(() => new Set());
@@ -141,6 +261,18 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
   }, []);
 
   useEffect(() => {
+    if (!window.matchMedia) {
+      return undefined;
+    }
+
+    const mediaQuery = window.matchMedia(DESKTOP_DOUBLE_PAGE_QUERY);
+    const handleChange = () => setIsDesktopReader(mediaQuery.matches);
+    handleChange();
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []);
+
+  useEffect(() => {
     let alive = true;
     readyRef.current = false;
     setFailedPageIds(new Set());
@@ -157,8 +289,13 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
         const pageCount = data.pages.length;
         const savedIndex = startFromBeginning ? 0 : data.progress?.currentPageIndex ?? 0;
         const safeIndex = Math.min(Math.max(savedIndex, 0), Math.max(pageCount - 1, 0));
+        const mangaId = data.manga?.id;
+        const fallbackMode = data.progress?.mode === "webtoon" ? "webtoon" : loadPreferredMode();
         setState({ loading: false, error: "", data });
-        setMode(startFromBeginning ? loadPreferredMode() : data.progress?.mode || loadPreferredMode());
+        setMode(startFromBeginning ? preferredModeForManga(mangaId) : preferredModeForManga(mangaId, fallbackMode));
+        setReaderZoom(preferredZoomForManga(mangaId));
+        setReadingDirection(preferredDirectionForManga(mangaId));
+        setSpreadMode(preferredSpreadForManga(mangaId));
         setCurrentPageIndex(safeIndex);
         setJumpValue(String(safeIndex + 1));
         setSaveState("");
@@ -203,7 +340,8 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
 
   useEffect(() => {
     writePreference(READER_MODE_KEY, mode);
-  }, [mode]);
+    writeMangaSetting(state.data?.manga?.id, "mode", mode);
+  }, [mode, state.data?.manga?.id]);
 
   useEffect(() => {
     writePreference(READER_IMMERSIVE_KEY, isImmersive ? "1" : "0");
@@ -218,11 +356,18 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
 
   useEffect(() => {
     writePreference(READER_ZOOM_KEY, readerZoom);
-  }, [readerZoom]);
+    writeMangaSetting(state.data?.manga?.id, "zoom", readerZoom);
+  }, [readerZoom, state.data?.manga?.id]);
 
   useEffect(() => {
     writePreference(READER_DIRECTION_KEY, readingDirection);
-  }, [readingDirection]);
+    writeMangaSetting(state.data?.manga?.id, "direction", readingDirection);
+  }, [readingDirection, state.data?.manga?.id]);
+
+  useEffect(() => {
+    writePreference(READER_SPREAD_KEY, spreadMode);
+    writeMangaSetting(state.data?.manga?.id, "spread", spreadMode);
+  }, [spreadMode, state.data?.manga?.id]);
 
   useEffect(() => {
     if (!readyRef.current || !state.data) {
@@ -372,21 +517,27 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
     ? Math.round(((currentPageIndex + 1) / pageCount) * 100)
     : 0;
   const remainingPages = Math.max(0, pageCount - currentPageIndex - 1);
-  const currentPageFailed = currentPage ? failedPageIds.has(currentPage.id) : false;
-  const pageImageStyle = pageZoomStyle(readerZoom);
+  const hasNextPage = currentPageIndex + 1 < pageCount;
+  const isDoublePageVisible = mode === "page" && spreadMode === "double" && isDesktopReader && hasNextPage;
+  const pageImageStyle = isDoublePageVisible ? pageSpreadZoomStyle(readerZoom) : pageZoomStyle(readerZoom);
   const webtoonStyle = webtoonZoomStyle(readerZoom);
   const canFullscreen = Boolean(document.fullscreenEnabled);
   const chapters = state.data.manga?.chapters || [];
   const currentChapterIndex = chapters.findIndex((mangaChapter) => mangaChapter.id === chapter.id);
   const nextChapter = currentChapterIndex >= 0 ? chapters[currentChapterIndex + 1] : null;
   const isLastPage = pageCount > 0 && currentPageIndex >= pageCount - 1;
+  const pageStep = isDoublePageVisible ? 2 : 1;
+  const visibleIndexes = visiblePageIndexes(currentPageIndex, pageCount, isDoublePageVisible, readingDirection);
+  const preloadedIndexes = mode === "page"
+    ? preloadPageIndexes(currentPageIndex, pageCount, isDoublePageVisible, isDesktopReader)
+    : [];
 
   function previousPage() {
     if (pageCount === 0) {
       return;
     }
 
-    setCurrentPageIndex((value) => Math.max(0, value - 1));
+    setCurrentPageIndex((value) => Math.max(0, value - pageStep));
   }
 
   function nextPage() {
@@ -394,7 +545,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
       return;
     }
 
-    setCurrentPageIndex((value) => Math.min(pageCount - 1, value + 1));
+    setCurrentPageIndex((value) => Math.min(pageCount - 1, value + pageStep));
   }
 
   function goByReadingSide(side) {
@@ -595,6 +746,23 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
             R→L
           </button>
         </div>
+        <div className="spread-toggle" aria-label="Vista de páginas">
+          <button
+            className={spreadMode === "single" || !isDesktopReader ? "active" : ""}
+            onClick={() => setSpreadMode("single")}
+            type="button"
+          >
+            1 pág.
+          </button>
+          <button
+            className={spreadMode === "double" && isDesktopReader ? "active" : ""}
+            disabled={!isDesktopReader}
+            onClick={() => setSpreadMode("double")}
+            type="button"
+          >
+            2 págs.
+          </button>
+        </div>
         <div className="reader-actions">
           <button onClick={() => setIsImmersive((value) => !value)}>
             {isImmersive ? "Mostrar UI" : "Modo inmersivo"}
@@ -683,33 +851,52 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
               Anterior
             </button>
             <div
-              className="page-frame"
+              className={`page-frame ${isDoublePageVisible ? "double-page-frame" : "single-page-frame"}`}
               onPointerDown={handlePointerDown}
               onPointerUp={handlePointerUp}
             >
-              {currentPage && !currentPageFailed ? (
-                <AuthenticatedImage
-                  src={imageUrl(currentPage.imageUrl)}
-                  alt={`Página ${currentPageIndex + 1}`}
-                  autoRetry={1}
-                  className="reader-page-image"
-                  decoding="async"
-                  fetchPriority="high"
-                  fallback={<p className="missing-page loading-page">Cargando página...</p>}
-                  loading="eager"
-                  onError={() => markPageFailed(currentPage.id)}
-                  style={pageImageStyle}
-                />
-              ) : currentPageFailed ? (
-                <p className="missing-page">
-                  No se pudo cargar el archivo de esta página desde storage.
-                  <button onClick={() => retryPage(currentPage.id)} type="button">
-                    Reintentar
-                  </button>
-                </p>
+              {visibleIndexes.length > 0 ? (
+                <div className="reader-page-spread" aria-label={isDoublePageVisible ? "Doble página" : "Una página"}>
+                  {visibleIndexes.map((pageIndex) => {
+                    const page = pages[pageIndex];
+                    const pageFailed = failedPageIds.has(page.id);
+
+                    return (
+                      <div className="reader-page-slot" key={page.id}>
+                        {!pageFailed ? (
+                          <AuthenticatedImage
+                            src={imageUrl(page.imageUrl)}
+                            alt={`Página ${pageIndex + 1}`}
+                            autoRetry={1}
+                            className="reader-page-image"
+                            decoding="async"
+                            fetchPriority={pageIndex === currentPageIndex ? "high" : "auto"}
+                            fallback={<p className="missing-page loading-page">Cargando página...</p>}
+                            loading="eager"
+                            onError={() => markPageFailed(page.id)}
+                            style={pageImageStyle}
+                          />
+                        ) : (
+                          <p className="missing-page">
+                            No se pudo cargar el archivo de esta página desde storage.
+                            <button onClick={() => retryPage(page.id)} type="button">
+                              Reintentar
+                            </button>
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               ) : (
                 <p className="missing-page">Este capítulo no tiene páginas registradas.</p>
               )}
+              <PagePreloader
+                currentPageIndex={currentPageIndex}
+                indexes={preloadedIndexes}
+                pages={pages}
+                visibleIndexes={visibleIndexes}
+              />
               <div className="tap-zones" aria-label="Controles táctiles">
                 <button
                   aria-label={readingDirection === "rtl" ? "Página siguiente" : "Página anterior"}
@@ -817,5 +1004,37 @@ function ChapterEndActions({ mangaId, nextChapter, onNavigate, onReread }) {
         </button>
       </div>
     </section>
+  );
+}
+
+function PagePreloader({ currentPageIndex, indexes, pages, visibleIndexes }) {
+  const visible = new Set(visibleIndexes);
+  const preloadIndexes = indexes.filter((index) => index !== currentPageIndex && !visible.has(index));
+
+  if (preloadIndexes.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="reader-preload" aria-hidden="true">
+      {preloadIndexes.map((index) => {
+        const page = pages[index];
+        if (!page) {
+          return null;
+        }
+
+        return (
+          <img
+            alt=""
+            crossOrigin="use-credentials"
+            decoding="async"
+            fetchPriority="low"
+            key={page.id}
+            loading="eager"
+            src={imageUrl(page.imageUrl)}
+          />
+        );
+      })}
+    </div>
   );
 }
