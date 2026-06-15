@@ -75,6 +75,7 @@ export function AuthenticatedImage({
       <img
         alt={alt}
         className={className}
+        crossOrigin="use-credentials"
         key={`${src}:${attempt}`}
         loading={loading}
         onError={handleError}
