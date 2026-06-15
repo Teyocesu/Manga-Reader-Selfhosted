@@ -724,6 +724,7 @@ h2 {
 }
 
 .reader-page {
+  --reader-frame-height: min(68dvh, 820px);
   --reader-page-max-height: min(78dvh, calc(100dvh - 24px));
   width: min(100%, 1280px);
   margin: 0 auto;
@@ -1019,7 +1020,8 @@ h2 {
 
 .page-frame {
   position: relative;
-  min-height: min(68dvh, 820px);
+  height: var(--reader-frame-height);
+  min-height: var(--reader-frame-height);
   display: grid;
   place-items: center;
   border: 1px solid rgba(255, 255, 255, 0.055);
@@ -1035,7 +1037,6 @@ h2 {
   grid-area: 1 / 1;
   width: 100%;
   max-width: none;
-  height: 100%;
   display: grid;
   place-items: center;
   gap: 6px;
@@ -1056,7 +1057,7 @@ h2 {
 .reader-page-slot {
   min-width: 0;
   width: 100%;
-  height: 100%;
+  height: auto;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -1073,6 +1074,7 @@ h2 {
 .reader-page-image {
   width: 100%;
   max-height: var(--reader-page-max-height);
+  height: auto;
   object-fit: contain;
 }
 
@@ -1210,6 +1212,7 @@ h2 {
 }
 
 .reader-page.immersive {
+  --reader-frame-height: 100dvh;
   --reader-page-max-height: 100dvh;
   width: 100%;
   min-height: 100dvh;
@@ -1230,6 +1233,7 @@ h2 {
 }
 
 .reader-page.immersive .page-frame {
+  height: 100dvh;
   min-height: 100dvh;
   border-radius: 0;
 }
@@ -1250,10 +1254,12 @@ h2 {
 
 @media (max-width: 760px) {
   .reader-page {
+    --reader-frame-height: min(64dvh, 720px);
     --reader-page-max-height: min(74dvh, calc(100dvh - 24px));
   }
 
   .reader-page.immersive {
+    --reader-frame-height: 100dvh;
     --reader-page-max-height: 100dvh;
   }
 
@@ -1404,7 +1410,6 @@ h2 {
   }
 
   .page-frame {
-    min-height: min(64dvh, 720px);
     order: 1;
   }
 

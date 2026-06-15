@@ -121,34 +121,51 @@ function pageImageZoomStyle(value) {
   if (value === "fit-width") {
     return {
       width: "100%",
-      maxHeight: "var(--reader-page-max-height)"
+      height: "auto",
+      maxHeight: "none"
     };
   }
 
   if (value === "fit-height" || value === "fit-page") {
     return {
       width: "auto",
+      height: "auto",
       maxWidth: "100%",
-      maxHeight: "var(--reader-page-max-height)"
+      maxHeight: "calc(var(--reader-frame-height) - 20px)"
     };
   }
 
-  return { width: "100%" };
+  return {
+    width: "100%",
+    height: "auto",
+    maxHeight: "none"
+  };
 }
 
 function pageSpreadZoomStyle(value) {
   if (value === "fit-width") {
-    return { width: "100%" };
+    return {
+      width: "100%",
+      height: "auto"
+    };
   }
 
   if (value === "fit-height" || value === "fit-page") {
     return {
+      height: "auto",
       width: "fit-content",
       maxWidth: "100%"
     };
   }
 
-  return { width: `${value}%` };
+  return {
+    width: `${value}%`,
+    height: "auto"
+  };
+}
+
+function isFitZoom(value) {
+  return value.startsWith("fit-");
 }
 
 function webtoonZoomStyle(value) {
@@ -857,7 +874,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
             >
               {visibleIndexes.length > 0 ? (
                 <div
-                  className="reader-page-spread"
+                  className={`reader-page-spread ${isFitZoom(readerZoom) ? "fit-zoom" : "percent-zoom"}`}
                   aria-label={isDoublePageVisible ? "Doble página" : "Una página"}
                   style={pageSpreadStyle}
                 >
