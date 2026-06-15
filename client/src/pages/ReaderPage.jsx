@@ -130,6 +130,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
   const readerRef = useRef(null);
   const readyRef = useRef(false);
   const pointerStartRef = useRef(null);
+  const skipInitialSaveRef = useRef(false);
 
   useEffect(() => {
     document.body.classList.add("reader-active");
@@ -145,6 +146,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
     setFailedPageIds(new Set());
     setLoadedPageIds(new Set());
     setActiveWebtoonPageIds(new Set());
+    skipInitialSaveRef.current = startFromBeginning;
 
     getChapter(chapterId)
       .then((data) => {
@@ -156,9 +158,10 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
         const savedIndex = startFromBeginning ? 0 : data.progress?.currentPageIndex ?? 0;
         const safeIndex = Math.min(Math.max(savedIndex, 0), Math.max(pageCount - 1, 0));
         setState({ loading: false, error: "", data });
-        setMode(data.progress?.mode || loadPreferredMode());
+        setMode(startFromBeginning ? loadPreferredMode() : data.progress?.mode || loadPreferredMode());
         setCurrentPageIndex(safeIndex);
         setJumpValue(String(safeIndex + 1));
+        setSaveState("");
         window.setTimeout(() => {
           readyRef.current = true;
         }, 0);
@@ -177,6 +180,26 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
   useEffect(() => {
     setJumpValue(String(currentPageIndex + 1));
   }, [currentPageIndex]);
+
+  useEffect(() => {
+    if (!startFromBeginning || !state.data) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      if (mode === "webtoon") {
+        imageRefs.current[0]?.scrollIntoView({
+          block: "start",
+          behavior: "auto"
+        });
+        return;
+      }
+
+      window.scrollTo({ top: 0, behavior: "auto" });
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [mode, startFromBeginning, state.data]);
 
   useEffect(() => {
     writePreference(READER_MODE_KEY, mode);
@@ -203,6 +226,11 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
 
   useEffect(() => {
     if (!readyRef.current || !state.data) {
+      return;
+    }
+
+    if (skipInitialSaveRef.current) {
+      skipInitialSaveRef.current = false;
       return;
     }
 
