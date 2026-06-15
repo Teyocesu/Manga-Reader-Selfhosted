@@ -6,6 +6,7 @@ import { readPreference, writePreference } from "../utils/preferences.js";
 const READER_MODE_KEY = "manga-reader.reader-mode";
 const READER_IMMERSIVE_KEY = "manga-reader.reader-immersive";
 const READER_IMMERSIVE_MENU_KEY = "manga-reader.reader-immersive-menu-open";
+const READER_DIRECTION_KEY = "manga-reader.reader-direction";
 const READER_ZOOM_KEY = "manga-reader.reader-zoom";
 const ZOOM_OPTIONS = [
   "50",
@@ -42,6 +43,10 @@ function loadPreferredImmersiveMenu() {
 function loadPreferredZoom() {
   const stored = readPreference(READER_ZOOM_KEY, "100");
   return ZOOM_OPTIONS.includes(stored) ? stored : "100";
+}
+
+function loadPreferredDirection() {
+  return readPreference(READER_DIRECTION_KEY) === "rtl" ? "rtl" : "ltr";
 }
 
 function zoomLabel(value) {
@@ -115,6 +120,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
   const [isImmersive, setIsImmersive] = useState(loadPreferredImmersive);
   const [isImmersiveMenuOpen, setIsImmersiveMenuOpen] = useState(loadPreferredImmersiveMenu);
   const [readerZoom, setReaderZoom] = useState(loadPreferredZoom);
+  const [readingDirection, setReadingDirection] = useState(loadPreferredDirection);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [saveState, setSaveState] = useState("");
   const [failedPageIds, setFailedPageIds] = useState(() => new Set());
@@ -190,6 +196,10 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
   useEffect(() => {
     writePreference(READER_ZOOM_KEY, readerZoom);
   }, [readerZoom]);
+
+  useEffect(() => {
+    writePreference(READER_DIRECTION_KEY, readingDirection);
+  }, [readingDirection]);
 
   useEffect(() => {
     if (!readyRef.current || !state.data) {
@@ -306,12 +316,12 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
 
       if (mode === "page" && event.key === "ArrowLeft") {
         event.preventDefault();
-        previousPage();
+        goByReadingSide("left");
       }
 
       if (mode === "page" && event.key === "ArrowRight") {
         event.preventDefault();
-        nextPage();
+        goByReadingSide("right");
       }
     }
 
@@ -357,6 +367,18 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
     }
 
     setCurrentPageIndex((value) => Math.min(pageCount - 1, value + 1));
+  }
+
+  function goByReadingSide(side) {
+    const shouldAdvance =
+      readingDirection === "rtl" ? side === "left" : side === "right";
+
+    if (shouldAdvance) {
+      nextPage();
+      return;
+    }
+
+    previousPage();
   }
 
   function markPageFailed(pageId) {
@@ -412,12 +434,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
       return;
     }
 
-    if (deltaX < 0) {
-      nextPage();
-      return;
-    }
-
-    previousPage();
+    goByReadingSide(deltaX < 0 ? "left" : "right");
   }
 
   function goToPage(pageNumber) {
@@ -532,6 +549,22 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
             type="button"
           >
             +
+          </button>
+        </div>
+        <div className="direction-toggle" aria-label="Dirección de lectura">
+          <button
+            className={readingDirection === "ltr" ? "active" : ""}
+            onClick={() => setReadingDirection("ltr")}
+            type="button"
+          >
+            L→R
+          </button>
+          <button
+            className={readingDirection === "rtl" ? "active" : ""}
+            onClick={() => setReadingDirection("rtl")}
+            type="button"
+          >
+            R→L
           </button>
         </div>
         <div className="reader-actions">
@@ -651,17 +684,17 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
               )}
               <div className="tap-zones" aria-label="Controles táctiles">
                 <button
-                  aria-label="Página anterior"
+                  aria-label={readingDirection === "rtl" ? "Página siguiente" : "Página anterior"}
                   className="tap-zone left"
-                  disabled={currentPageIndex === 0}
-                  onClick={previousPage}
+                  disabled={readingDirection === "rtl" ? currentPageIndex >= pageCount - 1 : currentPageIndex === 0}
+                  onClick={() => goByReadingSide("left")}
                   type="button"
                 />
                 <button
-                  aria-label="Página siguiente"
+                  aria-label={readingDirection === "rtl" ? "Página anterior" : "Página siguiente"}
                   className="tap-zone right"
-                  disabled={currentPageIndex >= pageCount - 1}
-                  onClick={nextPage}
+                  disabled={readingDirection === "rtl" ? currentPageIndex === 0 : currentPageIndex >= pageCount - 1}
+                  onClick={() => goByReadingSide("right")}
                   type="button"
                 />
               </div>

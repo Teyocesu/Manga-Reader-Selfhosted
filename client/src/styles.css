@@ -740,7 +740,7 @@ h2 {
   top: auto;
   z-index: 15;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
   gap: 14px;
   align-items: center;
   padding: 12px 14px;
@@ -772,6 +772,29 @@ h2 {
 }
 
 .mode-toggle .active {
+  background: var(--accent-strong);
+  color: #031614;
+}
+
+.direction-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.direction-toggle button {
+  min-width: 46px;
+  min-height: 36px;
+  border: 0;
+  padding: 0 8px;
+  font-size: 0.86rem;
+}
+
+.direction-toggle .active {
   background: var(--accent-strong);
   color: #031614;
 }
@@ -1168,6 +1191,10 @@ h2 {
 
   .reader-actions {
     display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .direction-toggle {
     grid-template-columns: 1fr 1fr;
   }
 
