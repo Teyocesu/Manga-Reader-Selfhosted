@@ -338,6 +338,10 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
   const pageImageStyle = pageZoomStyle(readerZoom);
   const webtoonStyle = webtoonZoomStyle(readerZoom);
   const canFullscreen = Boolean(document.fullscreenEnabled);
+  const chapters = state.data.manga?.chapters || [];
+  const currentChapterIndex = chapters.findIndex((mangaChapter) => mangaChapter.id === chapter.id);
+  const nextChapter = currentChapterIndex >= 0 ? chapters[currentChapterIndex + 1] : null;
+  const isLastPage = pageCount > 0 && currentPageIndex >= pageCount - 1;
 
   function previousPage() {
     if (pageCount === 0) {
@@ -450,6 +454,18 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
     if (nextMode === "webtoon") {
       window.setTimeout(() => {
         imageRefs.current[currentPageIndex]?.scrollIntoView({
+          block: "start",
+          behavior: "smooth"
+        });
+      }, 0);
+    }
+  }
+
+  function rereadChapter() {
+    goToPage(1);
+    if (mode === "webtoon") {
+      window.setTimeout(() => {
+        imageRefs.current[0]?.scrollIntoView({
           block: "start",
           behavior: "smooth"
         });
@@ -600,59 +616,69 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
       ) : null}
 
       {mode === "page" ? (
-        <div className="page-reader">
-          <button className="reader-nav-button" onClick={previousPage} disabled={currentPageIndex === 0}>
-            Anterior
-          </button>
-          <div
-            className="page-frame"
-            onPointerDown={handlePointerDown}
-            onPointerUp={handlePointerUp}
-          >
-            {currentPage && !currentPageFailed ? (
-              <AuthenticatedImage
-                src={imageUrl(currentPage.imageUrl)}
-                alt={`Página ${currentPageIndex + 1}`}
-                autoRetry={1}
-                className="reader-page-image"
-                decoding="async"
-                fetchPriority="high"
-                fallback={<p className="missing-page loading-page">Cargando página...</p>}
-                loading="eager"
-                onError={() => markPageFailed(currentPage.id)}
-                style={pageImageStyle}
-              />
-            ) : currentPageFailed ? (
-              <p className="missing-page">
-                No se pudo cargar el archivo de esta página desde storage.
-                <button onClick={() => retryPage(currentPage.id)} type="button">
-                  Reintentar
-                </button>
-              </p>
-            ) : (
-              <p className="missing-page">Este capítulo no tiene páginas registradas.</p>
-            )}
-            <div className="tap-zones" aria-label="Controles táctiles">
-              <button
-                aria-label="Página anterior"
-                className="tap-zone left"
-                disabled={currentPageIndex === 0}
-                onClick={previousPage}
-                type="button"
-              />
-              <button
-                aria-label="Página siguiente"
-                className="tap-zone right"
-                disabled={currentPageIndex >= pageCount - 1}
-                onClick={nextPage}
-                type="button"
-              />
+        <>
+          <div className="page-reader">
+            <button className="reader-nav-button" onClick={previousPage} disabled={currentPageIndex === 0}>
+              Anterior
+            </button>
+            <div
+              className="page-frame"
+              onPointerDown={handlePointerDown}
+              onPointerUp={handlePointerUp}
+            >
+              {currentPage && !currentPageFailed ? (
+                <AuthenticatedImage
+                  src={imageUrl(currentPage.imageUrl)}
+                  alt={`Página ${currentPageIndex + 1}`}
+                  autoRetry={1}
+                  className="reader-page-image"
+                  decoding="async"
+                  fetchPriority="high"
+                  fallback={<p className="missing-page loading-page">Cargando página...</p>}
+                  loading="eager"
+                  onError={() => markPageFailed(currentPage.id)}
+                  style={pageImageStyle}
+                />
+              ) : currentPageFailed ? (
+                <p className="missing-page">
+                  No se pudo cargar el archivo de esta página desde storage.
+                  <button onClick={() => retryPage(currentPage.id)} type="button">
+                    Reintentar
+                  </button>
+                </p>
+              ) : (
+                <p className="missing-page">Este capítulo no tiene páginas registradas.</p>
+              )}
+              <div className="tap-zones" aria-label="Controles táctiles">
+                <button
+                  aria-label="Página anterior"
+                  className="tap-zone left"
+                  disabled={currentPageIndex === 0}
+                  onClick={previousPage}
+                  type="button"
+                />
+                <button
+                  aria-label="Página siguiente"
+                  className="tap-zone right"
+                  disabled={currentPageIndex >= pageCount - 1}
+                  onClick={nextPage}
+                  type="button"
+                />
+              </div>
             </div>
+            <button className="reader-nav-button" onClick={nextPage} disabled={currentPageIndex >= pageCount - 1}>
+              Siguiente
+            </button>
           </div>
-          <button className="reader-nav-button" onClick={nextPage} disabled={currentPageIndex >= pageCount - 1}>
-            Siguiente
-          </button>
-        </div>
+          {isLastPage ? (
+            <ChapterEndActions
+              mangaId={manga.id}
+              nextChapter={nextChapter}
+              onNavigate={onNavigate}
+              onReread={rereadChapter}
+            />
+          ) : null}
+        </>
       ) : (
         <div className="webtoon-reader" style={webtoonStyle}>
           {pages.map((page, index) => (
@@ -690,8 +716,45 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
               )}
             </div>
           ))}
+          <ChapterEndActions
+            mangaId={manga.id}
+            nextChapter={nextChapter}
+            onNavigate={onNavigate}
+            onReread={rereadChapter}
+          />
         </div>
       )}
+    </section>
+  );
+}
+
+function ChapterEndActions({ mangaId, nextChapter, onNavigate, onReread }) {
+  return (
+    <section className="chapter-end-panel">
+      <p className="eyebrow">Fin del capítulo</p>
+      <h2>{nextChapter ? "Seguir leyendo" : "Fin del manga"}</h2>
+      <p>
+        {nextChapter
+          ? `Siguiente: ${nextChapter.title}`
+          : "No hay siguiente capítulo en este manga."}
+      </p>
+      <div className="chapter-end-actions">
+        {nextChapter ? (
+          <button
+            className="accent-button"
+            onClick={() => onNavigate(`/chapter/${nextChapter.id}?start=1`)}
+            type="button"
+          >
+            Siguiente capítulo
+          </button>
+        ) : null}
+        <button onClick={() => onNavigate(`/manga/${mangaId}`)} type="button">
+          Volver al manga
+        </button>
+        <button onClick={onReread} type="button">
+          Releer desde inicio
+        </button>
+      </div>
     </section>
   );
 }

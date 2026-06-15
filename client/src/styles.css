@@ -1062,6 +1062,38 @@ h2 {
   scroll-margin-top: 96px;
 }
 
+.chapter-end-panel {
+  width: min(100%, 620px);
+  margin: 16px auto max(18px, env(safe-area-inset-bottom));
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-strong);
+  box-shadow: var(--shadow-sm);
+  text-align: center;
+}
+
+.chapter-end-panel h2 {
+  font-size: 1.18rem;
+}
+
+.chapter-end-panel p {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
+.chapter-end-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 14px;
+}
+
+.chapter-end-actions button {
+  min-height: 40px;
+}
+
 .webtoon-page {
   min-height: 120px;
   display: grid;
@@ -1243,6 +1275,11 @@ h2 {
 
   .reader-topbar {
     padding: 10px;
+  }
+
+  .chapter-end-actions {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 
   .page-reader {
