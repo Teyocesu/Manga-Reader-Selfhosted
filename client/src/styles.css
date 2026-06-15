@@ -739,9 +739,9 @@ h2 {
   position: relative;
   top: auto;
   z-index: 15;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto auto auto auto;
-  gap: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 12px;
   align-items: center;
   padding: 12px 14px;
   margin: 0 0 12px;
@@ -752,8 +752,16 @@ h2 {
   box-shadow: var(--shadow-sm);
 }
 
+.reader-title-block {
+  flex: 1 1 420px;
+  min-width: min(100%, 320px);
+}
+
 .reader-topbar h1 {
-  font-size: clamp(1.25rem, 5vw, 2.1rem);
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+  font-size: clamp(1.25rem, 2.2vw, 2rem);
+  line-height: 1.08;
 }
 
 .mode-toggle {
@@ -831,6 +839,7 @@ h2 {
 }
 
 .reader-actions {
+  margin-left: auto;
   display: flex;
   gap: 8px;
   flex-wrap: wrap;

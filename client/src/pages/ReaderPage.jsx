@@ -695,7 +695,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
         <button className="text-button" onClick={() => onNavigate(`/manga/${manga.id}`)}>
           Volver
         </button>
-        <div>
+        <div className="reader-title-block">
           <p className="eyebrow">{manga.title}</p>
           <h1>{chapter.title}</h1>
         </div>
