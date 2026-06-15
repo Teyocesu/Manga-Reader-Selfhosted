@@ -43,13 +43,21 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
   useEffect(() => {
     let alive = true;
 
+    setSetupLoading(true);
+    setImportMode(initialMangaId ? "existing" : "new");
+    setSelectedMangaId(initialMangaId);
+    setImportedSubmissionKey("");
+    setStatus({ loading: false, error: "", success: "" });
+
     Promise.all([getAppConfig(), getLibrary()])
       .then(([config, library]) => {
         if (alive) {
           setAppConfig(config);
           setMangas(library.mangas);
           setSetupLoading(false);
-          if (!initialMangaId && library.mangas.length > 0) {
+          if (initialMangaId) {
+            setSelectedMangaId(initialMangaId);
+          } else if (library.mangas.length > 0) {
             setSelectedMangaId(library.mangas[0].id);
           }
         }
