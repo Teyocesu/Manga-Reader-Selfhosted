@@ -138,6 +138,8 @@ export function uploadChapter({
   mangaTitle,
   chapterTitle,
   archive,
+  imageEntries = [],
+  folderName = "",
   confirmPotentialDuplicate = false
 }) {
   const formData = new FormData();
@@ -150,7 +152,16 @@ export function uploadChapter({
   if (confirmPotentialDuplicate) {
     formData.append("confirmPotentialDuplicate", "1");
   }
-  formData.append("archive", archive);
+  if (folderName) {
+    formData.append("folderName", folderName);
+  }
+  if (archive) {
+    formData.append("archive", archive);
+  }
+  for (const entry of imageEntries) {
+    formData.append("images", entry.file);
+    formData.append("imagePaths", entry.path || entry.file.name);
+  }
 
   return request("/upload", {
     method: "POST",
