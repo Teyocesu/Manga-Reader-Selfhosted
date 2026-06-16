@@ -903,10 +903,10 @@ h2 {
 }
 
 .reader-jump-panel {
-  width: min(100%, 360px);
+  width: min(100%, 520px);
   margin: 0 auto 14px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(140px, 1fr) repeat(3, auto);
   gap: 8px;
   align-items: end;
 }
@@ -1410,6 +1410,14 @@ h2 {
 
   .reader-topbar {
     padding: 10px;
+  }
+
+  .reader-jump-panel {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .reader-jump-panel label {
+    grid-column: 1 / -1;
   }
 
   .chapter-end-actions {

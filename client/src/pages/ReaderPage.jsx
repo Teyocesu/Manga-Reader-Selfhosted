@@ -503,6 +503,16 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
         toggleFullscreen();
       }
 
+      if (event.key === "Home") {
+        event.preventDefault();
+        goToBoundary("start");
+      }
+
+      if (event.key === "End") {
+        event.preventDefault();
+        goToBoundary("end");
+      }
+
       if (mode === "page" && event.key === "ArrowLeft") {
         event.preventDefault();
         goByReadingSide("left");
@@ -662,6 +672,33 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
     goToPage(jumpValue);
   }
 
+  function goToBoundary(boundary) {
+    if (pageCount === 0) {
+      return;
+    }
+
+    const nextIndex = boundary === "end" ? pageCount - 1 : 0;
+    setCurrentPageIndex(nextIndex);
+    setJumpValue(String(nextIndex + 1));
+
+    if (mode === "webtoon") {
+      window.setTimeout(() => {
+        if (boundary === "end") {
+          window.scrollTo({
+            top: document.documentElement.scrollHeight,
+            behavior: "smooth"
+          });
+          return;
+        }
+
+        imageRefs.current[0]?.scrollIntoView({
+          block: "start",
+          behavior: "smooth"
+        });
+      }, 0);
+    }
+  }
+
   function setReaderMode(nextMode) {
     setMode(nextMode);
     if (nextMode === "webtoon") {
@@ -814,6 +851,12 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
           />
         </label>
         <button type="submit">Ir</button>
+        <button onClick={() => goToBoundary("start")} type="button">
+          Inicio
+        </button>
+        <button onClick={() => goToBoundary("end")} type="button">
+          Final
+        </button>
       </form>
 
       {isImmersive ? (
@@ -838,6 +881,12 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
                 </button>
               </div>
               <button onClick={() => setIsImmersive(false)}>Mostrar UI</button>
+              <button onClick={() => goToBoundary("start")} type="button">
+                Inicio
+              </button>
+              <button onClick={() => goToBoundary("end")} type="button">
+                Final
+              </button>
               <button onClick={toggleFullscreen} disabled={!canFullscreen}>
                 {isFullscreen ? "Salir pantalla completa" : "Pantalla completa"}
               </button>
