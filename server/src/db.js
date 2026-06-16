@@ -605,6 +605,39 @@ export function findChapterByTitle(mangaId, title) {
   return chapter ? rowToChapter(chapter) : null;
 }
 
+export function listChaptersForDuplicateCheck(mangaId) {
+  if (!mangaId) {
+    return [];
+  }
+
+  const chapters = db.prepare(`
+    SELECT
+      chapters.*,
+      COUNT(pages.id) AS page_count,
+      reading_progress.current_page_index,
+      reading_progress.mode,
+      reading_progress.updated_at AS progress_updated_at
+    FROM chapters
+    LEFT JOIN pages ON pages.chapter_id = chapters.id
+    LEFT JOIN reading_progress ON reading_progress.chapter_id = chapters.id
+    WHERE chapters.manga_id = ?
+    GROUP BY chapters.id
+    ORDER BY chapters.sort_order ASC, chapters.created_at ASC
+  `).all(mangaId);
+
+  const pagesByChapter = db.prepare(`
+    SELECT filename
+    FROM pages
+    WHERE chapter_id = ?
+    ORDER BY page_index ASC
+  `);
+
+  return chapters.map((chapter) => ({
+    ...rowToChapter(chapter),
+    pageFilenames: pagesByChapter.all(chapter.id).map((page) => page.filename)
+  }));
+}
+
 export function updateMangaTitle(mangaId, title) {
   const cleanTitle = normalizeTitle(title);
   if (!cleanTitle) {

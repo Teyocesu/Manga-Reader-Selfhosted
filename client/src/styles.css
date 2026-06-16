@@ -689,6 +689,47 @@ h2 {
   color: var(--text);
 }
 
+.duplicate-warning {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(245, 158, 11, 0.42);
+  border-radius: var(--radius-md);
+  background: rgba(120, 53, 15, 0.26);
+}
+
+.duplicate-warning h2 {
+  color: #fde68a;
+}
+
+.duplicate-warning-item {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.duplicate-warning-item p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.duplicate-warning-item strong {
+  color: var(--text);
+}
+
+.duplicate-warning-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: end;
+}
+
+.duplicate-warning-actions button {
+  min-height: 42px;
+}
+
 .manga-detail-hero {
   margin-top: 18px;
   display: grid;
@@ -1394,6 +1435,11 @@ h2 {
   .reader-actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
+  }
+
+  .duplicate-warning-actions {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 
   .direction-toggle {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getAppConfig, getLibrary, uploadChapter } from "../api.js";
 
 export function UploadPage({ initialMangaId = "", onNavigate }) {
@@ -17,6 +17,8 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
   const [setupLoading, setSetupLoading] = useState(true);
   const [status, setStatus] = useState({ loading: false, error: "", success: "" });
   const [importedSubmissionKey, setImportedSubmissionKey] = useState("");
+  const [duplicateWarning, setDuplicateWarning] = useState(null);
+  const fileInputRef = useRef(null);
 
   const fileKey = archive
     ? `${archive.name}:${archive.size}:${archive.lastModified}`
@@ -34,6 +36,7 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
     status.loading ||
     setupLoading ||
     alreadyImportedFromSelection ||
+    Boolean(duplicateWarning) ||
     (importMode === "existing" && !selectedMangaId);
   const previewTitle = archive
     ? chapterTitle.trim() || titleFromFilename(archive.name)
@@ -118,9 +121,20 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
     return "Importación finalizada.";
   }
 
-  async function handleSubmit(event) {
-    event.preventDefault();
+  function clearDuplicateWarning() {
+    setDuplicateWarning(null);
+  }
 
+  function cancelDuplicateWarning() {
+    setDuplicateWarning(null);
+    setArchive(null);
+    setStatus({ loading: false, error: "", success: "" });
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }
+
+  async function submitUpload(confirmPotentialDuplicate = false) {
     if (alreadyImportedFromSelection) {
       setStatus({
         loading: false,
@@ -137,9 +151,11 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
         mangaId: importMode === "existing" ? selectedMangaId : "",
         mangaTitle,
         chapterTitle,
-        archive
+        archive,
+        confirmPotentialDuplicate
       });
       setImportedSubmissionKey(submissionKey);
+      setDuplicateWarning(null);
 
       if ("totalChapters" in result) {
         setStatus({
@@ -152,8 +168,19 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
 
       onNavigate(`/manga/${result.manga.id}`);
     } catch (error) {
+      if (error.status === 409 && error.body?.duplicateWarning) {
+        setDuplicateWarning(error.body.duplicateWarning);
+        setStatus({ loading: false, error: "", success: "" });
+        return;
+      }
+
       setStatus({ loading: false, error: error.message, success: "" });
     }
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    await submitUpload(false);
   }
 
   return (
@@ -177,6 +204,7 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
             className={importMode === "new" ? "active" : ""}
             onClick={() => {
               setImportMode("new");
+              clearDuplicateWarning();
               setStatus((current) => ({ ...current, success: "" }));
             }}
             type="button"
@@ -188,6 +216,7 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
             disabled={mangas.length === 0}
             onClick={() => {
               setImportMode("existing");
+              clearDuplicateWarning();
               setStatus((current) => ({ ...current, success: "" }));
             }}
             type="button"
@@ -202,6 +231,7 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
             <select
               onChange={(event) => {
                 setSelectedMangaId(event.target.value);
+                clearDuplicateWarning();
                 setStatus((current) => ({ ...current, success: "" }));
               }}
               required
@@ -221,6 +251,7 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
               value={mangaTitle}
               onChange={(event) => {
                 setMangaTitle(event.target.value);
+                clearDuplicateWarning();
                 setStatus((current) => ({ ...current, success: "" }));
               }}
               placeholder="Ej: One-shot personal"
@@ -235,6 +266,7 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
             value={chapterTitle}
             onChange={(event) => {
               setChapterTitle(event.target.value);
+              clearDuplicateWarning();
               setStatus((current) => ({ ...current, success: "" }));
             }}
             placeholder="Ej: Tomo 01"
@@ -248,9 +280,11 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
             <small>Formatos locales soportados, sin descargas externas</small>
             <input
               accept=".zip,.cbz,.rar,.cbr"
+              ref={fileInputRef}
               type="file"
               onChange={(event) => {
                 setArchive(event.target.files?.[0] || null);
+                clearDuplicateWarning();
                 setStatus((current) => ({ ...current, success: "" }));
               }}
               required
@@ -273,6 +307,36 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
 
         {status.error ? <p className="error">{status.error}</p> : null}
         {status.success ? <p className="success">{status.success}</p> : null}
+        {duplicateWarning ? (
+          <div className="duplicate-warning">
+            <h2>{duplicateWarning.message}</h2>
+            {duplicateWarning.chapters.map((warning) => (
+              <div className="duplicate-warning-item" key={`${warning.incomingTitle}-${warning.existingChapter.id}`}>
+                <p>
+                  <strong>{warning.incomingTitle}</strong> se parece a{" "}
+                  <strong>{warning.existingChapter.title}</strong>
+                </p>
+                <p>
+                  {warning.existingChapter.pageCount} página{warning.existingChapter.pageCount === 1 ? "" : "s"} ·{" "}
+                  {warning.reasons.join(", ")}
+                </p>
+              </div>
+            ))}
+            <div className="duplicate-warning-actions">
+              <button onClick={cancelDuplicateWarning} type="button">
+                Cancelar
+              </button>
+              <button
+                className="accent-button"
+                disabled={status.loading || !duplicateWarning.canContinue}
+                onClick={() => submitUpload(true)}
+                type="button"
+              >
+                {status.loading ? "Procesando..." : "Continuar de todos modos"}
+              </button>
+            </div>
+          </div>
+        ) : null}
         {alreadyImportedFromSelection ? (
           <p className="form-help">
             Este archivo ya fue importado desde esta selección. Elegí otro archivo o cambiá los datos.

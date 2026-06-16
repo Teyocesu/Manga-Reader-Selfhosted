@@ -24,7 +24,10 @@ async function request(path, options = {}) {
       throw new Error("El servidor encontró un problema. Probá de nuevo en unos segundos.");
     }
 
-    throw new Error(message || "No se pudo completar la acción.");
+    const error = new Error(message || "No se pudo completar la acción.");
+    error.status = response.status;
+    error.body = body;
+    throw error;
   }
 
   return body;
@@ -120,7 +123,13 @@ export function saveProgress(chapterId, payload) {
   });
 }
 
-export function uploadChapter({ mangaId, mangaTitle, chapterTitle, archive }) {
+export function uploadChapter({
+  mangaId,
+  mangaTitle,
+  chapterTitle,
+  archive,
+  confirmPotentialDuplicate = false
+}) {
   const formData = new FormData();
   if (mangaId) {
     formData.append("mangaId", mangaId);
@@ -128,6 +137,9 @@ export function uploadChapter({ mangaId, mangaTitle, chapterTitle, archive }) {
     formData.append("mangaTitle", mangaTitle);
   }
   formData.append("chapterTitle", chapterTitle);
+  if (confirmPotentialDuplicate) {
+    formData.append("confirmPotentialDuplicate", "1");
+  }
   formData.append("archive", archive);
 
   return request("/upload", {
