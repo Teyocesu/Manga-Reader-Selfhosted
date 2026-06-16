@@ -5,6 +5,7 @@ import { Router } from "express";
 import multer from "multer";
 import {
   extractArchiveChapters,
+  imageMimeTypeForFilename,
   sanitizeChapterTitleFromArchiveName,
   validateArchiveFilename
 } from "../archive.js";
@@ -33,15 +34,29 @@ import { createMangaThumbnail, selectRepresentativePage } from "../thumbnails.js
 
 await ensureStorageDirs();
 
+const folderImageFileLimit = Math.max(config.maxImagesPerChapter * 10, config.maxImagesPerChapter);
+const collator = new Intl.Collator(undefined, {
+  numeric: true,
+  sensitivity: "base"
+});
+
 const upload = multer({
   dest: tempDir,
   limits: {
     fileSize: maxUploadBytes,
-    files: 1
+    files: folderImageFileLimit + 1
   },
   fileFilter: (_req, file, callback) => {
     try {
-      validateArchiveFilename(file.originalname);
+      if (file.fieldname === "archive") {
+        validateArchiveFilename(file.originalname);
+      } else if (file.fieldname === "images") {
+        if (!imageMimeTypeForFilename(file.originalname)) {
+          throw userInputError(`Unsupported image file: ${file.originalname}`);
+        }
+      } else {
+        throw userInputError("Unsupported upload field");
+      }
       callback(null, true);
     } catch (error) {
       callback(error);
@@ -61,6 +76,139 @@ function cleanTitle(value) {
 
 function pageFilename(index, extension) {
   return `${String(index + 1).padStart(4, "0")}${extension}`;
+}
+
+function userInputError(message) {
+  const error = new Error(message);
+  error.statusCode = 400;
+  return error;
+}
+
+function asArray(value) {
+  if (value == null) {
+    return [];
+  }
+
+  return Array.isArray(value) ? value : [value];
+}
+
+function normalizeRelativePath(value, fallbackName) {
+  const rawPath = String(value || fallbackName || "")
+    .replaceAll("\\", "/")
+    .replace(/^\/+/, "")
+    .trim();
+
+  if (
+    !rawPath ||
+    rawPath.includes("\0") ||
+    rawPath.startsWith("../") ||
+    rawPath.includes("/../") ||
+    rawPath.endsWith("/..") ||
+    /^[a-zA-Z]:/.test(rawPath)
+  ) {
+    throw userInputError(`Ruta de imagen insegura: ${fallbackName || value}`);
+  }
+
+  const parts = rawPath.split("/").filter(Boolean);
+  if (parts.some((part) => part === "." || part === ".." || /[\x00-\x1f]/.test(part))) {
+    throw userInputError(`Ruta de imagen insegura: ${fallbackName || value}`);
+  }
+
+  return parts.join("/");
+}
+
+function folderTitleFromPath(relativePath) {
+  const parts = relativePath.split("/").filter(Boolean);
+  const lastFolder = parts.length > 1 ? parts[parts.length - 2] : "";
+  const filenameTitle = sanitizeChapterTitleFromArchiveName(parts[parts.length - 1] || "Capítulo");
+  return cleanTitle(lastFolder || filenameTitle);
+}
+
+function folderRootTitle(paths, fallbackTitle) {
+  const roots = [...new Set(paths.map((relativePath) => relativePath.split("/")[0]).filter(Boolean))];
+  return roots.length === 1 ? cleanTitle(roots[0]) : cleanTitle(fallbackTitle);
+}
+
+function folderChapterKey(relativePath, rootTitle) {
+  const parts = relativePath.split("/").filter(Boolean);
+  if (parts.length <= 1) {
+    return rootTitle || "Capítulo";
+  }
+
+  const allShareRoot = rootTitle && parts[0] === rootTitle;
+  if (allShareRoot && parts.length >= 3) {
+    return parts[1];
+  }
+
+  if (!allShareRoot && parts.length >= 2) {
+    return parts[0];
+  }
+
+  return rootTitle || folderTitleFromPath(relativePath);
+}
+
+function extractedChaptersFromImageFiles({ files, imagePaths, chapterTitle, uploadedFilename }) {
+  if (!files.length) {
+    return [];
+  }
+
+  if (files.length > folderImageFileLimit) {
+    throw userInputError(`Demasiadas imágenes. Máximo: ${folderImageFileLimit}.`);
+  }
+
+  let totalBytes = 0;
+  const normalized = files.map((file, index) => {
+    totalBytes += file.size || 0;
+    const originalPath = normalizeRelativePath(imagePaths[index], file.originalname);
+    const mimeType = imageMimeTypeForFilename(originalPath || file.originalname);
+    if (!mimeType) {
+      throw userInputError(`Unsupported image file: ${originalPath}`);
+    }
+
+    return {
+      file,
+      originalPath,
+      extension: path.extname(originalPath).toLowerCase(),
+      mimeType
+    };
+  });
+
+  if (totalBytes > maxUploadBytes) {
+    throw userInputError("Folder is too large");
+  }
+
+  normalized.sort((a, b) => collator.compare(a.originalPath, b.originalPath));
+
+  const rootTitle = folderRootTitle(
+    normalized.map((item) => item.originalPath),
+    chapterTitle || uploadedFilename
+  );
+  const groups = new Map();
+
+  for (const item of normalized) {
+    const key = folderChapterKey(item.originalPath, rootTitle);
+    if (!groups.has(key)) {
+      groups.set(key, []);
+    }
+    groups.get(key).push(item);
+  }
+
+  return [...groups.entries()].map(([groupTitle, pages]) => {
+    if (pages.length > config.maxImagesPerChapter) {
+      throw userInputError(`La carpeta "${groupTitle}" supera ${config.maxImagesPerChapter} páginas.`);
+    }
+
+    return {
+      chapterTitle: cleanTitle(pages.length === normalized.length ? chapterTitle || rootTitle : groupTitle),
+      originalFilename: groupTitle,
+      pages: pages.map((page) => ({
+        originalPath: page.originalPath,
+        extension: page.extension,
+        mimeType: page.mimeType,
+        tempPath: page.file.path
+      }))
+    };
+  });
 }
 
 function normalizeDuplicateText(value) {
@@ -211,7 +359,7 @@ function findDuplicateWarnings({ existingChapters, extractedChapters, chapterTit
     .map((extractedChapter) => {
       const title = isPack
         ? extractedChapter.chapterTitle
-        : chapterTitle || sanitizeChapterTitleFromArchiveName(uploadedFilename);
+        : chapterTitle || extractedChapter.chapterTitle || sanitizeChapterTitleFromArchiveName(uploadedFilename);
 
       return duplicateWarningForChapter({
         existingChapters,
@@ -223,6 +371,14 @@ function findDuplicateWarnings({ existingChapters, extractedChapters, chapterTit
       });
     })
     .filter(Boolean);
+}
+
+function resolveChapterTitle({ isPack, extractedChapter, chapterTitle, uploadedFilename }) {
+  return cleanTitle(
+    isPack
+      ? extractedChapter.chapterTitle
+      : chapterTitle || extractedChapter.chapterTitle || sanitizeChapterTitleFromArchiveName(uploadedFilename)
+  );
 }
 
 function summarizeImport({ manga, importedChapters, skippedChapters }) {
@@ -253,35 +409,67 @@ function summarizeImport({ manga, importedChapters, skippedChapters }) {
   };
 }
 
-uploadRouter.post("/upload", upload.single("archive"), async (req, res, next) => {
+uploadRouter.post(
+  "/upload",
+  upload.fields([
+    { name: "archive", maxCount: 1 },
+    { name: "images", maxCount: folderImageFileLimit }
+  ]),
+  async (req, res, next) => {
   let extractDir;
   let createdMangaId = null;
   let createdThumbnailPath = null;
   let thumbnailMangaId = null;
   const chapterDirs = [];
   const createdChapterIds = [];
+  const uploadedFiles = [];
 
   try {
     const mangaTitle = cleanTitle(req.body.mangaTitle);
     const chapterTitle = cleanTitle(req.body.chapterTitle);
     const mangaId = cleanTitle(req.body.mangaId);
+    const folderName = cleanTitle(req.body.folderName);
     const confirmPotentialDuplicate = req.body.confirmPotentialDuplicate === "1";
+    const archiveFile = req.files?.archive?.[0] || null;
+    const imageFiles = req.files?.images || [];
+    uploadedFiles.push(...(archiveFile ? [archiveFile] : []), ...imageFiles);
 
     if (!mangaId && !mangaTitle) {
       return res.status(400).json({ error: "Manga title is required" });
     }
 
-    if (!req.file) {
-      return res.status(400).json({ error: "Archive file is required" });
+    if (archiveFile && imageFiles.length > 0) {
+      return res.status(400).json({ error: "Upload archives or image folders separately" });
+    }
+
+    if (!archiveFile && imageFiles.length === 0) {
+      return res.status(400).json({ error: "Archive file or image folder is required" });
     }
 
     const uploadId = randomUUID();
-    extractDir = path.join(tempDir, `extract-${uploadId}`);
-    const extractedChapters = await extractArchiveChapters(
-      req.file.path,
-      req.file.originalname,
-      extractDir
-    );
+    const uploadedFilename =
+      archiveFile?.originalname ||
+      folderName ||
+      chapterTitle ||
+      imageFiles[0]?.originalname ||
+      "Carpeta";
+    let extractedChapters;
+
+    if (archiveFile) {
+      extractDir = path.join(tempDir, `extract-${uploadId}`);
+      extractedChapters = await extractArchiveChapters(
+        archiveFile.path,
+        archiveFile.originalname,
+        extractDir
+      );
+    } else {
+      extractedChapters = extractedChaptersFromImageFiles({
+        files: imageFiles,
+        imagePaths: asArray(req.body.imagePaths),
+        chapterTitle,
+        uploadedFilename
+      });
+    }
 
     const existingManga = mangaId ? getManga(mangaId) : findMangaByTitle(mangaTitle);
     if (mangaId && !existingManga) {
@@ -297,7 +485,7 @@ uploadRouter.post("/upload", upload.single("archive"), async (req, res, next) =>
       existingChapters: listChaptersForDuplicateCheck(manga.id),
       extractedChapters,
       chapterTitle,
-      uploadedFilename: req.file.originalname
+      uploadedFilename
     });
 
     if (duplicateWarnings.length > 0 && !confirmPotentialDuplicate) {
@@ -338,9 +526,12 @@ uploadRouter.post("/upload", upload.single("archive"), async (req, res, next) =>
     const isPack = extractedChapters.length > 1;
 
     for (const extractedChapter of extractedChapters) {
-      const finalChapterTitle = isPack
-        ? extractedChapter.chapterTitle
-        : chapterTitle || sanitizeChapterTitleFromArchiveName(req.file.originalname);
+      const finalChapterTitle = resolveChapterTitle({
+        isPack,
+        extractedChapter,
+        chapterTitle,
+        uploadedFilename
+      });
       const existingChapter = findChapterByTitle(manga.id, finalChapterTitle);
 
       if (existingChapter) {
@@ -373,7 +564,7 @@ uploadRouter.post("/upload", upload.single("archive"), async (req, res, next) =>
         mangaId: manga.id,
         chapterId,
         chapterTitle: finalChapterTitle,
-        originalFilename: isPack ? extractedChapter.originalFilename : req.file.originalname,
+        originalFilename: isPack ? extractedChapter.originalFilename : uploadedFilename,
         chapterStoragePath: relativeStoragePath(chapterDir),
         pages
       });
@@ -410,6 +601,6 @@ uploadRouter.post("/upload", upload.single("archive"), async (req, res, next) =>
     next(error);
   } finally {
     await removeQuietly(extractDir);
-    await removeQuietly(req.file?.path);
+    await Promise.all(uploadedFiles.map((file) => removeQuietly(file.path)));
   }
 });

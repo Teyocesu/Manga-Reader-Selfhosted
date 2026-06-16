@@ -4,6 +4,7 @@ import helmet from "helmet";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { config } from "./config.js";
+import { supportedImageExtensions } from "./archive.js";
 import { authRouter, requireAuth } from "./auth.js";
 import { libraryRouter } from "./routes/library.js";
 import { pagesRouter } from "./routes/pages.js";
@@ -47,7 +48,8 @@ app.get("/api/config", (_req, res) => {
     upload: {
       maxUploadMb: config.maxUploadMb,
       maxImagesPerChapter: config.maxImagesPerChapter,
-      supportedFormats: [".zip", ".cbz", ".rar", ".cbr"]
+      supportedFormats: [".zip", ".cbz", ".rar", ".cbr"],
+      supportedImageFormats: supportedImageExtensions()
     }
   });
 });

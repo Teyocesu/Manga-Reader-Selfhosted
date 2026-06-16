@@ -11,6 +11,7 @@ const allowedImageTypes = new Map([
   [".jpeg", "image/jpeg"],
   [".png", "image/png"],
   [".webp", "image/webp"],
+  [".avif", "image/avif"],
   [".gif", "image/gif"]
 ]);
 
@@ -111,6 +112,14 @@ export function validateArchiveFilename(filename) {
   if (!isSupportedArchive(filename)) {
     throw userInputError("Only .zip, .cbz, .rar and .cbr files are supported");
   }
+}
+
+export function imageMimeTypeForFilename(filename) {
+  return allowedImageTypes.get(path.extname(filename).toLowerCase()) || "";
+}
+
+export function supportedImageExtensions() {
+  return [...allowedImageTypes.keys()];
 }
 
 function validateImageCandidate(images, entryName, mimeType, size) {
