@@ -262,11 +262,13 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
   const [failedPageIds, setFailedPageIds] = useState(() => new Set());
   const [loadedPageIds, setLoadedPageIds] = useState(() => new Set());
   const [activeWebtoonPageIds, setActiveWebtoonPageIds] = useState(() => new Set());
+  const [pageTurnClass, setPageTurnClass] = useState("");
   const imageRefs = useRef([]);
   const readerRef = useRef(null);
   const readyRef = useRef(false);
   const pointerStartRef = useRef(null);
   const skipInitialSaveRef = useRef(false);
+  const pageTurnTimeoutRef = useRef(null);
 
   useEffect(() => {
     document.body.classList.add("reader-active");
@@ -274,6 +276,12 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
     return () => {
       document.body.classList.remove("reader-active");
     };
+  }, []);
+
+  useEffect(() => () => {
+    if (pageTurnTimeoutRef.current) {
+      window.clearTimeout(pageTurnTimeoutRef.current);
+    }
   }, []);
 
   useEffect(() => {
@@ -564,7 +572,11 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
       return;
     }
 
-    setCurrentPageIndex((value) => Math.max(0, value - pageStep));
+    const nextIndex = Math.max(0, currentPageIndex - pageStep);
+    if (nextIndex !== currentPageIndex) {
+      animatePageTurn("back");
+      setCurrentPageIndex(nextIndex);
+    }
   }
 
   function nextPage() {
@@ -572,7 +584,34 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
       return;
     }
 
-    setCurrentPageIndex((value) => Math.min(pageCount - 1, value + pageStep));
+    const nextIndex = Math.min(pageCount - 1, currentPageIndex + pageStep);
+    if (nextIndex !== currentPageIndex) {
+      animatePageTurn("forward");
+      setCurrentPageIndex(nextIndex);
+    }
+  }
+
+  function animatePageTurn(movement) {
+    if (mode !== "page") {
+      return;
+    }
+
+    const side =
+      readingDirection === "rtl"
+        ? movement === "forward" ? "left" : "right"
+        : movement === "forward" ? "right" : "left";
+
+    if (pageTurnTimeoutRef.current) {
+      window.clearTimeout(pageTurnTimeoutRef.current);
+    }
+
+    setPageTurnClass("");
+    window.requestAnimationFrame(() => {
+      setPageTurnClass(`turn-from-${side}`);
+      pageTurnTimeoutRef.current = window.setTimeout(() => {
+        setPageTurnClass("");
+      }, 190);
+    });
   }
 
   function goByReadingSide(side) {
@@ -656,6 +695,9 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
     }
 
     const nextIndex = Math.min(Math.max(targetPage - 1, 0), pageCount - 1);
+    if (mode === "page" && nextIndex !== currentPageIndex) {
+      animatePageTurn(nextIndex > currentPageIndex ? "forward" : "back");
+    }
     setCurrentPageIndex(nextIndex);
     setJumpValue(String(nextIndex + 1));
 
@@ -678,6 +720,9 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
     }
 
     const nextIndex = boundary === "end" ? pageCount - 1 : 0;
+    if (mode === "page" && nextIndex !== currentPageIndex) {
+      animatePageTurn(nextIndex > currentPageIndex ? "forward" : "back");
+    }
     setCurrentPageIndex(nextIndex);
     setJumpValue(String(nextIndex + 1));
 
@@ -927,7 +972,7 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
             >
               {visibleIndexes.length > 0 ? (
                 <div
-                  className={`reader-page-spread ${isFitZoom(readerZoom) ? "fit-zoom" : "percent-zoom"}`}
+                  className={`reader-page-spread ${isFitZoom(readerZoom) ? "fit-zoom" : "percent-zoom"} ${pageTurnClass}`}
                   aria-label={isDoublePageVisible ? "Doble página" : "Una página"}
                   style={pageSpreadStyle}
                 >

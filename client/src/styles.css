@@ -408,7 +408,7 @@ h2 {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018)), var(--surface);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
-  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
 }
 
 .manga-card:hover {
@@ -517,6 +517,14 @@ h2 {
   border-radius: var(--radius-md);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.042), rgba(255, 255, 255, 0.018)), var(--surface);
   box-shadow: var(--shadow-sm);
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.manga-list-row:hover {
+  transform: translateY(-1px);
+  border-color: rgba(45, 212, 191, 0.22);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.024)), var(--surface);
+  box-shadow: var(--shadow-md);
 }
 
 .compact-cover-button {
@@ -649,10 +657,11 @@ h2 {
   border: 1px dashed rgba(45, 212, 191, 0.45);
   border-radius: var(--radius-lg);
   background: rgba(20, 184, 166, 0.08);
-  transition: border-color 150ms ease, background 150ms ease;
+  transition: transform 150ms ease, border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
 }
 
 .file-drop:hover {
+  transform: translateY(-1px);
   border-color: rgba(45, 212, 191, 0.72);
   background: rgba(20, 184, 166, 0.12);
 }
@@ -678,6 +687,7 @@ h2 {
 }
 
 .queue-drop.dragging {
+  transform: translateY(-2px) scale(1.005);
   border-color: rgba(45, 212, 191, 0.9);
   background: rgba(20, 184, 166, 0.16);
   box-shadow: 0 0 0 4px rgba(45, 212, 191, 0.12);
@@ -703,6 +713,13 @@ h2 {
   color: var(--text);
   cursor: pointer;
   font-weight: 850;
+  transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
+}
+
+.picker-button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(45, 212, 191, 0.42);
+  background: rgba(255, 255, 255, 0.095);
 }
 
 .queue-drop .picker-button input {
@@ -777,6 +794,23 @@ h2 {
   gap: 12px;
 }
 
+.queue-final-report {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid rgba(45, 212, 191, 0.24);
+  border-radius: var(--radius-md);
+  background: rgba(20, 184, 166, 0.08);
+  color: var(--muted);
+  font-size: 0.94rem;
+}
+
+.queue-final-report strong {
+  color: var(--text);
+}
+
 .upload-queue-heading,
 .upload-submit-row {
   display: flex;
@@ -799,6 +833,13 @@ h2 {
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.04);
+  animation: queueItemIn 180ms ease-out;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.upload-queue-item:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.052);
 }
 
 .upload-queue-item.completed {
@@ -844,6 +885,25 @@ h2 {
   font-size: 0.9rem;
 }
 
+.queue-item-message {
+  margin: -2px 0 0;
+  color: var(--muted);
+  font-size: 0.93rem;
+  font-weight: 800;
+}
+
+.queue-item-message.completed {
+  color: #bbf7d0;
+}
+
+.queue-item-message.warning {
+  color: #fde68a;
+}
+
+.queue-item-message.error {
+  color: #fecaca;
+}
+
 .queue-item-actions {
   min-width: 138px;
   display: grid;
@@ -871,6 +931,7 @@ h2 {
 .queue-status.importing {
   color: #bfdbfe;
   background: rgba(30, 64, 175, 0.32);
+  animation: queueStatusPulse 1.2s ease-in-out infinite;
 }
 
 .queue-status.warning {
@@ -885,6 +946,37 @@ h2 {
 
 .queue-warning {
   box-shadow: none;
+}
+
+.duplicate-reasons,
+.queue-result-detail ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+}
+
+.duplicate-reasons li,
+.queue-result-detail li {
+  margin: 3px 0;
+}
+
+.queue-result-detail {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid rgba(245, 158, 11, 0.24);
+  border-radius: var(--radius-sm);
+  background: rgba(120, 53, 15, 0.16);
+}
+
+.queue-result-detail strong {
+  color: #fde68a;
+}
+
+.queue-error-detail {
+  margin: 0;
+  color: #fecaca;
+  font-weight: 800;
 }
 
 .manga-detail-hero {
@@ -978,6 +1070,7 @@ h2 {
   border-radius: var(--radius-lg);
   background: var(--surface-strong);
   box-shadow: var(--shadow-sm);
+  animation: softPanelIn 180ms ease-out;
 }
 
 .bulk-rename-list {
@@ -1019,6 +1112,14 @@ h2 {
   border-radius: var(--radius-lg);
   background: var(--surface);
   box-shadow: var(--shadow-sm);
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.chapter-row:hover {
+  transform: translateY(-1px);
+  border-color: rgba(45, 212, 191, 0.2);
+  background: var(--surface-strong);
+  box-shadow: var(--shadow-md);
 }
 
 .chapter-row p {
@@ -1094,6 +1195,7 @@ h2 {
   background: rgba(7, 9, 15, 0.82);
   backdrop-filter: blur(16px);
   box-shadow: var(--shadow-sm);
+  transition: opacity 180ms ease, transform 180ms ease, border-color 180ms ease;
 }
 
 .reader-title-block {
@@ -1126,6 +1228,7 @@ h2 {
 .mode-toggle .active {
   background: var(--accent-strong);
   color: #031614;
+  transition: background 150ms ease, color 150ms ease;
 }
 
 .direction-toggle {
@@ -1149,6 +1252,7 @@ h2 {
 .direction-toggle .active {
   background: var(--accent-strong);
   color: #031614;
+  transition: background 150ms ease, color 150ms ease;
 }
 
 .spread-toggle {
@@ -1172,6 +1276,7 @@ h2 {
 .spread-toggle .active {
   background: var(--accent-strong);
   color: #031614;
+  transition: background 150ms ease, color 150ms ease;
 }
 
 .spread-toggle button:disabled {
@@ -1243,6 +1348,7 @@ h2 {
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, var(--accent), var(--warm));
+  transition: width 180ms ease;
 }
 
 .reader-jump-panel {
@@ -1327,6 +1433,7 @@ h2 {
   background: rgba(8, 10, 15, 0.84);
   box-shadow: 0 18px 46px rgba(0, 0, 0, 0.46);
   backdrop-filter: blur(16px);
+  animation: softPanelIn 160ms ease-out;
 }
 
 .reader-immersive-menu button {
@@ -1384,6 +1491,15 @@ h2 {
   place-items: center;
   gap: 6px;
   padding: 10px;
+  will-change: transform, opacity;
+}
+
+.reader-page-spread.turn-from-right {
+  animation: pageTurnFromRight 180ms ease-out both;
+}
+
+.reader-page-spread.turn-from-left {
+  animation: pageTurnFromLeft 180ms ease-out both;
 }
 
 .single-page-frame .reader-page-spread {
@@ -1610,6 +1726,91 @@ h2 {
   width: min(100%, 980px);
   padding-top: 0;
   padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+
+@keyframes softPanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes queueItemIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes queueStatusPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(96, 165, 250, 0);
+  }
+
+  50% {
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.12);
+  }
+}
+
+@keyframes pageTurnFromRight {
+  from {
+    opacity: 0.9;
+    filter: drop-shadow(-10px 0 18px rgba(0, 0, 0, 0.22));
+    transform: translateX(14px) scale(0.998);
+  }
+
+  to {
+    opacity: 1;
+    filter: drop-shadow(0 0 0 rgba(0, 0, 0, 0));
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes pageTurnFromLeft {
+  from {
+    opacity: 0.9;
+    filter: drop-shadow(10px 0 18px rgba(0, 0, 0, 0.22));
+    transform: translateX(-14px) scale(0.998);
+  }
+
+  to {
+    opacity: 1;
+    filter: drop-shadow(0 0 0 rgba(0, 0, 0, 0));
+    transform: translateX(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
+
+  button:hover,
+  .file-drop:hover,
+  .queue-drop.dragging,
+  .upload-queue-item:hover,
+  .manga-card:hover,
+  .manga-list-row:hover,
+  .chapter-row:hover,
+  .reader-immersive-tab:hover {
+    transform: none;
+  }
 }
 
 @media (max-width: 760px) {
