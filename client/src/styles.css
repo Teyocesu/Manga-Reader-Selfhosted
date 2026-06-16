@@ -369,19 +369,30 @@ h2 {
 }
 
 .library-toolbar {
-  width: min(100%, 640px);
+  width: min(100%, 780px);
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) minmax(220px, 0.78fr);
+  grid-template-columns: minmax(240px, 1fr) minmax(190px, 0.72fr) minmax(178px, 0.6fr);
   gap: 16px;
   align-items: end;
 }
 
-.library-toolbar label {
+.library-toolbar label,
+.library-view-control {
   display: grid;
   gap: 6px;
   color: #aab2c5;
   font-size: 0.9rem;
   font-weight: 850;
+}
+
+.library-view-toggle {
+  min-height: 48px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.library-view-toggle button {
+  min-height: 40px;
+  padding: 0 10px;
 }
 
 .continue-grid {
@@ -488,6 +499,93 @@ h2 {
 
 .card-actions button {
   min-height: 42px;
+}
+
+.manga-list {
+  display: grid;
+  gap: 10px;
+}
+
+.manga-list-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.042), rgba(255, 255, 255, 0.018)), var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.compact-cover-button {
+  width: 64px;
+  min-height: 86px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  padding: 0;
+  overflow: hidden;
+  background: transparent;
+  box-shadow: none;
+}
+
+.compact-cover-button:hover {
+  background: transparent;
+  box-shadow: none;
+}
+
+.compact-cover-image,
+.compact-cover-placeholder {
+  width: 64px;
+  height: 86px;
+}
+
+.compact-cover-image {
+  display: block;
+  object-fit: cover;
+}
+
+.compact-cover-placeholder {
+  display: grid;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 1rem;
+  font-weight: 950;
+  background:
+    linear-gradient(150deg, rgba(240, 82, 82, 0.95), rgba(139, 92, 246, 0.86) 54%, rgba(20, 184, 166, 0.82)),
+    #141827;
+}
+
+.manga-list-main {
+  min-width: 0;
+}
+
+.manga-list-main h2 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.manga-list-main p {
+  margin: 5px 0;
+  color: var(--muted);
+}
+
+.manga-list-main .mini-progress {
+  max-width: 340px;
+  margin: 8px 0;
+}
+
+.manga-list-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  min-width: 116px;
+}
+
+.manga-list-actions button {
+  min-height: 40px;
 }
 
 .compact-empty {
@@ -1393,6 +1491,28 @@ h2 {
 
   .manga-card-body {
     padding: 12px;
+  }
+
+  .manga-list-row {
+    grid-template-columns: 54px minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .compact-cover-button {
+    width: 54px;
+    min-height: 72px;
+  }
+
+  .compact-cover-image,
+  .compact-cover-placeholder {
+    width: 54px;
+    height: 72px;
+  }
+
+  .manga-list-actions {
+    grid-column: 1 / -1;
+    grid-template-columns: 1fr 1fr;
+    min-width: 0;
   }
 
   .detail-cover {

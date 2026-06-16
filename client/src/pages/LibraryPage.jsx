@@ -4,6 +4,7 @@ import { MangaThumbnail } from "../components/MangaThumbnail.jsx";
 import { readPreference, writePreference } from "../utils/preferences.js";
 
 const LIBRARY_SORT_KEY = "manga-reader.library-sort";
+const LIBRARY_VIEW_KEY = "manga-reader.library-view";
 
 const SORT_OPTIONS = [
   { value: "recent", label: "Actualizado recientemente" },
@@ -15,6 +16,10 @@ const SORT_OPTIONS = [
 function loadStoredSort() {
   const stored = readPreference(LIBRARY_SORT_KEY, "recent");
   return SORT_OPTIONS.some((option) => option.value === stored) ? stored : "recent";
+}
+
+function loadStoredView() {
+  return readPreference(LIBRARY_VIEW_KEY) === "compact" ? "compact" : "large";
 }
 
 function formatDate(value) {
@@ -78,6 +83,47 @@ function MangaCard({ manga, onNavigate, featured = false }) {
   );
 }
 
+function MangaCompactRow({ manga, onNavigate }) {
+  return (
+    <article className="manga-list-row">
+      <button className="compact-cover-button" onClick={() => onNavigate(`/manga/${manga.id}`)}>
+        <MangaThumbnail
+          className="compact-cover-image"
+          loading="lazy"
+          placeholderClassName="compact-cover-placeholder"
+          title={manga.title}
+          url={manga.thumbnailUrl ? imageUrl(manga.thumbnailUrl) : ""}
+        />
+      </button>
+      <div className="manga-list-main">
+        <h2>{manga.title}</h2>
+        <p>
+          {manga.chapterCount} capítulo{manga.chapterCount === 1 ? "" : "s"} ·{" "}
+          {manga.progressPercent}% leído
+        </p>
+        <div className="mini-progress" aria-label={`Progreso ${manga.progressPercent}%`}>
+          <span style={{ width: `${manga.progressPercent}%` }} />
+        </div>
+        <p className="last-read">
+          {manga.continueChapter
+            ? `Último: ${manga.continueChapter.title}${manga.lastReadAt ? ` · ${formatDate(manga.lastReadAt)}` : ""}`
+            : "Sin progreso todavía"}
+        </p>
+      </div>
+      <div className="manga-list-actions">
+        <button onClick={() => onNavigate(`/manga/${manga.id}`)}>Ver</button>
+        <button
+          className={manga.continueChapter ? "accent-button" : ""}
+          disabled={!manga.continueChapter}
+          onClick={() => onNavigate(`/chapter/${manga.continueChapter.id}`)}
+        >
+          Continuar
+        </button>
+      </div>
+    </article>
+  );
+}
+
 export function LibraryPage({ onNavigate }) {
   const [state, setState] = useState({
     loading: true,
@@ -86,6 +132,7 @@ export function LibraryPage({ onNavigate }) {
   });
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState(loadStoredSort);
+  const [viewMode, setViewMode] = useState(loadStoredView);
 
   useEffect(() => {
     let alive = true;
@@ -114,6 +161,10 @@ export function LibraryPage({ onNavigate }) {
   useEffect(() => {
     writePreference(LIBRARY_SORT_KEY, sortBy);
   }, [sortBy]);
+
+  useEffect(() => {
+    writePreference(LIBRARY_VIEW_KEY, viewMode);
+  }, [viewMode]);
 
   const continueMangas = useMemo(
     () =>
@@ -235,6 +286,25 @@ export function LibraryPage({ onNavigate }) {
                     ))}
                   </select>
                 </label>
+                <div className="library-view-control">
+                  <span>Vista</span>
+                  <div className="mode-toggle library-view-toggle" aria-label="Vista de biblioteca">
+                    <button
+                      className={viewMode === "large" ? "active" : ""}
+                      onClick={() => setViewMode("large")}
+                      type="button"
+                    >
+                      Portadas
+                    </button>
+                    <button
+                      className={viewMode === "compact" ? "active" : ""}
+                      onClick={() => setViewMode("compact")}
+                      type="button"
+                    >
+                      Lista
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -244,11 +314,21 @@ export function LibraryPage({ onNavigate }) {
                 <p>Probá con otra búsqueda o limpiá el campo.</p>
               </div>
             ) : (
-              <div className="manga-grid">
-                {filteredMangas.map((manga) => (
-                  <MangaCard key={manga.id} manga={manga} onNavigate={onNavigate} />
-                ))}
-              </div>
+              <>
+                {viewMode === "compact" ? (
+                  <div className="manga-list">
+                    {filteredMangas.map((manga) => (
+                      <MangaCompactRow key={manga.id} manga={manga} onNavigate={onNavigate} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="manga-grid">
+                    {filteredMangas.map((manga) => (
+                      <MangaCard key={manga.id} manga={manga} onNavigate={onNavigate} />
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </section>
         </>
