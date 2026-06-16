@@ -682,20 +682,24 @@ export function ReaderPage({ chapterId, onNavigate, startFromBeginning = false }
     setJumpValue(String(nextIndex + 1));
 
     if (mode === "webtoon") {
-      window.setTimeout(() => {
-        if (boundary === "end") {
-          window.scrollTo({
-            top: document.documentElement.scrollHeight,
-            behavior: "smooth"
-          });
+      const scrollTargetIntoView = () => {
+        const target = imageRefs.current[nextIndex];
+        if (!target) {
           return;
         }
 
-        imageRefs.current[0]?.scrollIntoView({
-          block: "start",
-          behavior: "smooth"
+        const rect = target.getBoundingClientRect();
+        const targetTop = rect.top + window.scrollY;
+        const targetBottom = targetTop + rect.height;
+        window.scrollTo({
+          top: boundary === "end" ? Math.max(0, targetBottom - window.innerHeight) : targetTop,
+          behavior: "auto"
         });
-      }, 0);
+      };
+
+      window.setTimeout(scrollTargetIntoView, 0);
+      window.setTimeout(scrollTargetIntoView, 180);
+      window.setTimeout(scrollTargetIntoView, 620);
     }
   }
 
