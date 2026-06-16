@@ -4,6 +4,7 @@ import {
   deleteManga,
   getManga,
   imageUrl,
+  renameChapters,
   reorderChapters,
   updateChapter,
   updateManga
@@ -44,6 +45,9 @@ export function MangaDetailPage({ mangaId, onNavigate }) {
   });
   const [mangaTitleDraft, setMangaTitleDraft] = useState("");
   const [chapterTitleDrafts, setChapterTitleDrafts] = useState({});
+  const [isBulkRenaming, setIsBulkRenaming] = useState(false);
+  const [bulkRenameError, setBulkRenameError] = useState("");
+  const [bulkRenameSaving, setBulkRenameSaving] = useState(false);
   const [movingChapterId, setMovingChapterId] = useState("");
 
   function loadManga() {
@@ -133,6 +137,79 @@ export function MangaDetailPage({ mangaId, onNavigate }) {
       loadManga();
     } catch (error) {
       setState((current) => ({ ...current, error: error.message }));
+    }
+  }
+
+  function validateBulkChapterTitles(chapters, drafts) {
+    const cleanedTitles = chapters.map((chapter) => ({
+      id: chapter.id,
+      title: (drafts[chapter.id] ?? "").trim().replace(/\s+/g, " ")
+    }));
+
+    if (cleanedTitles.some((chapter) => !chapter.title)) {
+      return {
+        error: "No puede haber títulos vacíos.",
+        chapters: cleanedTitles
+      };
+    }
+
+    const normalizedTitles = cleanedTitles.map((chapter) => chapter.title.toLowerCase());
+    if (new Set(normalizedTitles).size !== normalizedTitles.length) {
+      return {
+        error: "Hay títulos duplicados. Ajustalos antes de guardar.",
+        chapters: cleanedTitles
+      };
+    }
+
+    return {
+      error: "",
+      chapters: cleanedTitles
+    };
+  }
+
+  function startBulkRenaming() {
+    setBulkRenameError("");
+    setChapterTitleDrafts(
+      Object.fromEntries(state.manga.chapters.map((chapter) => [chapter.id, chapter.title]))
+    );
+    setIsBulkRenaming(true);
+  }
+
+  function cancelBulkRenaming() {
+    setBulkRenameError("");
+    setChapterTitleDrafts(
+      Object.fromEntries(state.manga.chapters.map((chapter) => [chapter.id, chapter.title]))
+    );
+    setIsBulkRenaming(false);
+  }
+
+  async function handleSaveBulkChapterTitles(event) {
+    event.preventDefault();
+
+    const validation = validateBulkChapterTitles(chapters, chapterTitleDrafts);
+    if (validation.error) {
+      setBulkRenameError(validation.error);
+      return;
+    }
+
+    setBulkRenameSaving(true);
+    setBulkRenameError("");
+    try {
+      const manga = await renameChapters(mangaId, validation.chapters);
+      setState((current) => ({
+        ...current,
+        error: "",
+        message: "Títulos de capítulos actualizados.",
+        manga
+      }));
+      setChapterTitleDrafts(
+        Object.fromEntries(manga.chapters.map((chapter) => [chapter.id, chapter.title]))
+      );
+      setIsBulkRenaming(false);
+    } catch (error) {
+      setBulkRenameError(error.message);
+    } finally {
+      setBulkRenameSaving(false);
     }
   }
 
@@ -273,6 +350,57 @@ export function MangaDetailPage({ mangaId, onNavigate }) {
       {state.message ? <p className="success">{state.message}</p> : null}
 
       <div className="chapter-list">
+        {chapters.length > 0 ? (
+          <div className="chapter-list-toolbar">
+            <div>
+              <p className="eyebrow">Capítulos</p>
+              <h2>Orden y títulos</h2>
+            </div>
+            {!isBulkRenaming ? (
+              <button onClick={startBulkRenaming} type="button">
+                Renombrar varios
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
+        {isBulkRenaming ? (
+          <form className="bulk-rename-panel" onSubmit={handleSaveBulkChapterTitles}>
+            <div className="bulk-rename-heading">
+              <div>
+                <p className="eyebrow">Renombrado masivo</p>
+                <h2>Editar títulos de capítulos</h2>
+              </div>
+              <div className="bulk-rename-actions">
+                <button disabled={bulkRenameSaving} onClick={cancelBulkRenaming} type="button">
+                  Cancelar
+                </button>
+                <button className="accent-button" disabled={bulkRenameSaving} type="submit">
+                  {bulkRenameSaving ? "Guardando..." : "Guardar cambios"}
+                </button>
+              </div>
+            </div>
+            {bulkRenameError ? <p className="error">{bulkRenameError}</p> : null}
+            <div className="bulk-rename-list">
+              {chapters.map((chapter, index) => (
+                <label className="bulk-rename-row" key={chapter.id}>
+                  <span>{index + 1}</span>
+                  <input
+                    value={chapterTitleDrafts[chapter.id] ?? chapter.title}
+                    onChange={(event) => {
+                      setBulkRenameError("");
+                      setChapterTitleDrafts((current) => ({
+                        ...current,
+                        [chapter.id]: event.target.value
+                      }));
+                    }}
+                  />
+                </label>
+              ))}
+            </div>
+          </form>
+        ) : null}
+
         {chapters.map((chapter, index) => (
           <article className="chapter-row" key={chapter.id}>
             <div>

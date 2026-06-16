@@ -2,6 +2,7 @@ import { Router } from "express";
 import { access } from "node:fs/promises";
 import path from "node:path";
 import {
+  bulkUpdateChapterTitles,
   deleteChapter,
   deleteManga,
   getChapter,
@@ -45,6 +46,19 @@ libraryRouter.put("/mangas/:mangaId", (req, res, next) => {
 libraryRouter.post("/mangas/:mangaId/chapters/reorder", (req, res, next) => {
   try {
     const manga = reorderMangaChapters(req.params.mangaId, req.body?.chapterIds);
+    if (!manga) {
+      return res.status(404).json({ error: "Manga not found" });
+    }
+
+    res.json(manga);
+  } catch (error) {
+    next(error);
+  }
+});
+
+libraryRouter.post("/mangas/:mangaId/chapters/rename", (req, res, next) => {
+  try {
+    const manga = bulkUpdateChapterTitles(req.params.mangaId, req.body?.chapters);
     if (!manga) {
       return res.status(404).json({ error: "Manga not found" });
     }

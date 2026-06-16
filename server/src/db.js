@@ -694,6 +694,81 @@ export function updateChapterTitle(chapterId, title) {
   return getChapter(chapterId);
 }
 
+export function bulkUpdateChapterTitles(mangaId, chapterTitles) {
+  const manga = db.prepare("SELECT id FROM mangas WHERE id = ?").get(mangaId);
+  if (!manga) {
+    return null;
+  }
+
+  if (!Array.isArray(chapterTitles) || chapterTitles.length === 0) {
+    const error = new Error("Chapter titles are required");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const currentChapters = getManga(mangaId).chapters;
+  const currentIds = new Set(currentChapters.map((chapter) => chapter.id));
+  const requestedIds = chapterTitles.map((chapter) => String(chapter?.id || ""));
+  const requestedSet = new Set(requestedIds);
+
+  if (
+    requestedIds.length !== currentChapters.length ||
+    requestedSet.size !== currentChapters.length ||
+    !requestedIds.every((chapterId) => currentIds.has(chapterId))
+  ) {
+    const error = new Error("Chapter titles must include every chapter exactly once");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const cleanedTitles = chapterTitles.map((chapter) => ({
+    id: String(chapter.id),
+    title: normalizeTitle(chapter.title)
+  }));
+
+  if (cleanedTitles.some((chapter) => !chapter.title)) {
+    const error = new Error("Chapter titles cannot be empty");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const normalizedTitles = cleanedTitles.map((chapter) => chapter.title.toLowerCase());
+  if (new Set(normalizedTitles).size !== normalizedTitles.length) {
+    const error = new Error("Chapter titles cannot be duplicated");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const updatedAt = now();
+
+  try {
+    db.exec("BEGIN");
+    const updateChapter = db.prepare(`
+      UPDATE chapters
+      SET title = ?,
+          updated_at = ?
+      WHERE id = ?
+        AND manga_id = ?
+    `);
+
+    for (const chapter of cleanedTitles) {
+      updateChapter.run(chapter.title, updatedAt, chapter.id, mangaId);
+    }
+
+    db.prepare(`
+      UPDATE mangas
+      SET updated_at = ?
+      WHERE id = ?
+    `).run(updatedAt, mangaId);
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+
+  return getManga(mangaId);
+}
+
 export function createImportedChapter({
   mangaId,
   chapterId,

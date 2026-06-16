@@ -99,6 +99,16 @@ export function reorderChapters(mangaId, chapterIds) {
   });
 }
 
+export function renameChapters(mangaId, chapters) {
+  return request(`/mangas/${mangaId}/chapters/rename`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ chapters })
+  });
+}
+
 export function updateChapter(chapterId, payload) {
   return request(`/chapters/${chapterId}`, {
     method: "PUT",
