@@ -10,6 +10,13 @@ const QUEUE_LABELS = {
   pending: "pendiente",
   warning: "duplicado/advertencia"
 };
+const QUEUE_STATE_MESSAGES = {
+  completed: "Importación completada.",
+  error: "No se pudo importar esta entrada.",
+  importing: "Importando archivos y generando páginas...",
+  pending: "Lista para subir.",
+  warning: "El servidor detectó un posible duplicado."
+};
 
 function titleFromFilename(filename) {
   return String(filename || "")
@@ -112,6 +119,99 @@ function groupImageEntries(entries) {
   );
 }
 
+function importedCountFromResult(result) {
+  if (!result) {
+    return 0;
+  }
+
+  if (Number.isInteger(result.totalChapters)) {
+    return result.totalChapters;
+  }
+
+  return result.chapter ? 1 : 0;
+}
+
+function pageCountFromResult(result) {
+  if (!result) {
+    return 0;
+  }
+
+  if (Number.isInteger(result.totalPages)) {
+    return result.totalPages;
+  }
+
+  return Array.isArray(result.pages) ? result.pages.length : 0;
+}
+
+function skippedCountFromResult(result) {
+  if (!result) {
+    return 0;
+  }
+
+  if (Number.isInteger(result.totalSkipped)) {
+    return result.totalSkipped;
+  }
+
+  return Array.isArray(result.skippedChapters) ? result.skippedChapters.length : 0;
+}
+
+function queueItemResultMessage(item) {
+  if (item.status === "completed") {
+    const imported = importedCountFromResult(item.result);
+    const pages = pageCountFromResult(item.result);
+    const skipped = skippedCountFromResult(item.result);
+    const parts = [];
+    if (imported > 0) {
+      parts.push(`${imported} capítulo${imported === 1 ? "" : "s"} importado${imported === 1 ? "" : "s"}`);
+    }
+    if (pages > 0) {
+      parts.push(`${pages} página${pages === 1 ? "" : "s"}`);
+    }
+    if (skipped > 0) {
+      parts.push(`${skipped} duplicado${skipped === 1 ? "" : "s"} omitido${skipped === 1 ? "" : "s"}`);
+    }
+    return item.result?.message || parts.join(" · ") || QUEUE_STATE_MESSAGES.completed;
+  }
+
+  if (item.status === "warning") {
+    return item.duplicateWarning?.message || QUEUE_STATE_MESSAGES.warning;
+  }
+
+  if (item.status === "error") {
+    return item.error ? `${QUEUE_STATE_MESSAGES.error}: ${item.error}` : QUEUE_STATE_MESSAGES.error;
+  }
+
+  return QUEUE_STATE_MESSAGES[item.status] || "";
+}
+
+function queueReportFromItems(items) {
+  return items.reduce(
+    (summary, item) => {
+      if (item.status === "completed") {
+        summary.imported += importedCountFromResult(item.result);
+        summary.skipped += skippedCountFromResult(item.result);
+      } else if (item.status === "warning") {
+        summary.warnings += 1;
+      } else if (item.status === "error") {
+        summary.errors += 1;
+      }
+
+      return summary;
+    },
+    { imported: 0, skipped: 0, warnings: 0, errors: 0 }
+  );
+}
+
+function queueReportText(summary) {
+  const parts = [
+    `${summary.imported} importado${summary.imported === 1 ? "" : "s"}`,
+    `${summary.skipped + summary.warnings} duplicado${summary.skipped + summary.warnings === 1 ? "" : "s"}/advertencia${summary.skipped + summary.warnings === 1 ? "" : "s"}`,
+    `${summary.errors} error${summary.errors === 1 ? "" : "es"}`
+  ];
+
+  return parts.join(" · ");
+}
+
 async function readDirectoryEntries(reader) {
   const allEntries = [];
   let batch = await new Promise((resolve, reject) => reader.readEntries(resolve, reject));
@@ -196,6 +296,10 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
       .map(([statusKey, count]) => `${count} ${QUEUE_LABELS[statusKey] || statusKey}`)
       .join(" · ");
   }, [queueItems]);
+  const queueReport = useMemo(() => queueReportFromItems(queueItems), [queueItems]);
+  const hasQueueReport = queueItems.some((item) =>
+    item.status === "completed" || item.status === "warning" || item.status === "error"
+  );
   const canSubmit =
     !setupLoading &&
     !isProcessing &&
@@ -323,14 +427,15 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
   }
 
   function updateQueueItemTitle(itemId, value) {
-    setQueueItem(itemId, { chapterTitle: value, error: "" });
+    setQueueItem(itemId, { chapterTitle: value, error: "", errorDetail: null });
   }
 
   async function uploadQueueItem(item, options = {}) {
     setQueueItem(item.id, {
       status: "importing",
       error: "",
-      duplicateWarning: null
+      duplicateWarning: null,
+      errorDetail: null
     });
 
     try {
@@ -351,9 +456,10 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
         status: "completed",
         result,
         error: "",
-        duplicateWarning: null
+        duplicateWarning: null,
+        errorDetail: null
       });
-      return { ok: true, mangaId: nextMangaId };
+      return { ok: true, mangaId: nextMangaId, result };
     } catch (error) {
       if (error.status === 409 && error.body?.duplicateWarning) {
         const warningMangaId = error.body.duplicateWarning.manga?.id || options.targetMangaId || "";
@@ -371,9 +477,10 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
       setQueueItem(item.id, {
         status: "error",
         error: error.message,
-        duplicateWarning: null
+        duplicateWarning: null,
+        errorDetail: error.body || null
       });
-      return { ok: false, mangaId: options.targetMangaId || "" };
+      return { ok: false, error: true, mangaId: options.targetMangaId || "" };
     }
   }
 
@@ -390,7 +497,7 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
     const itemsToProcess = queueItems.filter(
       (item) => item.status === "pending" || item.status === "error"
     );
-    let completed = 0;
+    const finalSummary = { imported: 0, skipped: 0, warnings: 0, errors: 0 };
 
     for (const item of itemsToProcess) {
       const result = await uploadQueueItem(item, { targetMangaId: currentMangaId });
@@ -398,14 +505,19 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
         currentMangaId = result.mangaId;
       }
       if (result.ok) {
-        completed += 1;
+        finalSummary.imported += importedCountFromResult(result.result);
+        finalSummary.skipped += skippedCountFromResult(result.result);
+      } else if (result.warning) {
+        finalSummary.warnings += 1;
+      } else if (result.error) {
+        finalSummary.errors += 1;
       }
     }
 
     setIsProcessing(false);
     setStatus({
-      error: "",
-      success: `Cola finalizada: ${completed} completado${completed === 1 ? "" : "s"} de ${itemsToProcess.length}.`
+      error: finalSummary.errors > 0 ? "Algunas entradas no se pudieron importar. Revisá el detalle de la cola." : "",
+      success: `Cola finalizada: ${queueReportText(finalSummary)}.`
     });
   }
 
@@ -588,6 +700,12 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
               </button>
             </div>
             {queueSummary ? <p className="form-help">{queueSummary}</p> : null}
+            {hasQueueReport ? (
+              <div className="queue-final-report" aria-live="polite">
+                <strong>Resumen</strong>
+                <span>{queueReportText(queueReport)}</span>
+              </div>
+            ) : null}
             <div className="upload-queue-list">
               {queueItems.map((item) => (
                 <article className={`upload-queue-item ${item.status}`} key={item.id}>
@@ -604,6 +722,9 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
                         value={item.chapterTitle}
                       />
                     </label>
+                    <p className={`queue-item-message ${item.status}`}>
+                      {queueItemResultMessage(item)}
+                    </p>
                     {item.duplicateWarning ? (
                       <div className="duplicate-warning queue-warning">
                         <h2>{item.duplicateWarning.message}</h2>
@@ -616,10 +737,40 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
                               <strong>{warning.incomingTitle}</strong> se parece a{" "}
                               <strong>{warning.existingChapter.title}</strong>
                             </p>
-                            <p>{warning.reasons.join(", ")}</p>
+                            <p>
+                              Capítulo relacionado: {warning.existingChapter.title}
+                              {warning.existingChapter.originalFilename
+                                ? ` · ${warning.existingChapter.originalFilename}`
+                                : ""}{" "}
+                              · {warning.existingChapter.pageCount} página{warning.existingChapter.pageCount === 1 ? "" : "s"}
+                            </p>
+                            <p>
+                              Entrada nueva: {warning.incomingOriginalFilename || warning.incomingTitle} ·{" "}
+                              {warning.incomingPageCount} página{warning.incomingPageCount === 1 ? "" : "s"}
+                            </p>
+                            <ul className="duplicate-reasons">
+                              {warning.reasons.map((reason) => (
+                                <li key={reason}>{reason}</li>
+                              ))}
+                            </ul>
                           </div>
                         ))}
                       </div>
+                    ) : null}
+                    {item.result?.skippedChapters?.length > 0 ? (
+                      <div className="queue-result-detail">
+                        <strong>Duplicados omitidos</strong>
+                        <ul>
+                          {item.result.skippedChapters.map((chapter) => (
+                            <li key={`${item.id}-${chapter.title}`}>
+                              {chapter.title}: {chapter.reason}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                    {item.errorDetail?.error && item.errorDetail.error !== item.error ? (
+                      <p className="queue-error-detail">{item.errorDetail.error}</p>
                     ) : null}
                     {item.error ? <p className="error">{item.error}</p> : null}
                   </div>
