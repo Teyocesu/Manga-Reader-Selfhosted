@@ -24,6 +24,14 @@ NODE_ENV=production
 
 `DATA_DIR` guarda SQLite. `STORAGE_DIR` guarda imagenes extraidas, temporales y miniaturas. Ambos deben apuntar a una ruta persistente del hosting.
 
+Para cambiar la contraseña de acceso, editá `APP_PASSWORD` en el `.env` local o en las variables del hosting y reiniciá el servicio. Ejemplo seguro:
+
+```text
+APP_PASSWORD=tu_password_nuevo
+```
+
+No subas `.env` a GitHub ni pegues la contraseña real en commits, logs o tickets. Si `APP_PASSWORD` queda vacío, la app puede quedar sin login; no lo dejes vacío en una URL expuesta.
+
 ## Build y start
 
 ```bash
