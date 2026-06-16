@@ -1020,7 +1020,6 @@ h2 {
 
 .page-frame {
   position: relative;
-  height: var(--reader-frame-height);
   min-height: var(--reader-frame-height);
   display: grid;
   place-items: center;
@@ -1029,7 +1028,7 @@ h2 {
   background: #020305;
   touch-action: pan-y;
   user-select: none;
-  overflow: auto;
+  overflow: visible;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.34);
 }
 
@@ -1252,7 +1251,6 @@ h2 {
 }
 
 .reader-page.immersive .page-frame {
-  height: 100dvh;
   min-height: 100dvh;
   border-radius: 0;
 }
