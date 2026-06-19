@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getAppConfig, getLibrary, uploadChapter } from "../api.js";
+import { getAppConfig, getLibrary, getStorageStatus, uploadChapter } from "../api.js";
+import { formatBytes, StorageOverview } from "../components/StorageOverview.jsx";
 
 const ARCHIVE_EXTENSIONS = [".zip", ".cbz", ".rar", ".cbr"];
 const DEFAULT_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".avif", ".gif"];
@@ -280,6 +281,8 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [status, setStatus] = useState({ error: "", success: "" });
+  const [storageStatus, setStorageStatus] = useState(null);
+  const [storageConfirmed, setStorageConfirmed] = useState(false);
   const archiveInputRef = useRef(null);
   const folderInputRef = useRef(null);
 
@@ -300,11 +303,42 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
   const hasQueueReport = queueItems.some((item) =>
     item.status === "completed" || item.status === "warning" || item.status === "error"
   );
+  const pendingQueueBytes = useMemo(
+    () =>
+      queueItems
+        .filter((item) => item.status === "pending" || item.status === "error")
+        .reduce((total, item) => total + (item.totalSize || 0), 0),
+    [queueItems]
+  );
+  const storagePreflight = useMemo(() => {
+    if (!storageStatus || pendingQueueBytes <= 0) {
+      return {
+        exceedsQuota: false,
+        requiresConfirmation: false,
+        estimatedRemainingBytes: storageStatus?.freeQuotaBytes ?? 0
+      };
+    }
+
+    const estimatedRemainingBytes = storageStatus.freeQuotaBytes - pendingQueueBytes;
+    const quotaBytes = storageStatus.quotaBytes || 1;
+    const remainingRatio = estimatedRemainingBytes / quotaBytes;
+    const exceedsQuota = estimatedRemainingBytes < 0;
+    const requiresConfirmation =
+      !exceedsQuota && (remainingRatio <= 0.1 || storageStatus.warning?.level !== "ok");
+
+    return {
+      exceedsQuota,
+      requiresConfirmation,
+      estimatedRemainingBytes
+    };
+  }, [pendingQueueBytes, storageStatus]);
   const canSubmit =
     !setupLoading &&
     !isProcessing &&
     queueItems.some((item) => item.status === "pending" || item.status === "error") &&
-    (importMode === "existing" ? Boolean(selectedMangaId) : Boolean(mangaTitle.trim()));
+    (importMode === "existing" ? Boolean(selectedMangaId) : Boolean(mangaTitle.trim())) &&
+    !storagePreflight.exceedsQuota &&
+    (!storagePreflight.requiresConfirmation || storageConfirmed);
   const targetMangaId = importMode === "existing" ? selectedMangaId : queueTargetMangaId;
 
   useEffect(() => {
@@ -317,11 +351,12 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
     setQueueItems([]);
     setStatus({ error: "", success: "" });
 
-    Promise.all([getAppConfig(), getLibrary()])
-      .then(([config, library]) => {
+    Promise.all([getAppConfig(), getLibrary(), getStorageStatus()])
+      .then(([config, library, storage]) => {
         if (alive) {
           setAppConfig(config);
           setMangas(library.mangas);
+          setStorageStatus(storage);
           setSetupLoading(false);
           if (initialMangaId) {
             setSelectedMangaId(initialMangaId);
@@ -344,6 +379,18 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
       alive = false;
     };
   }, [initialMangaId]);
+
+  useEffect(() => {
+    setStorageConfirmed(false);
+  }, [pendingQueueBytes]);
+
+  async function refreshStorageStatus() {
+    try {
+      setStorageStatus(await getStorageStatus());
+    } catch {
+      // Backend still enforces quota; keep the last visible value if refresh fails.
+    }
+  }
 
   function resetInputs() {
     if (archiveInputRef.current) {
@@ -512,6 +559,7 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
       } else if (result.error) {
         finalSummary.errors += 1;
       }
+      await refreshStorageStatus();
     }
 
     setIsProcessing(false);
@@ -535,6 +583,7 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
       targetMangaId: currentMangaId,
       confirmPotentialDuplicate: true
     });
+    await refreshStorageStatus();
     setIsProcessing(false);
     setStatus({
       error: result.ok ? "" : "No se pudo continuar esa entrada.",
@@ -557,6 +606,8 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
         {setupLoading ? (
           <p className="file-summary">Cargando configuración y biblioteca...</p>
         ) : null}
+
+        <StorageOverview storage={storageStatus} />
 
         <div className="mode-toggle upload-mode-toggle" aria-label="Tipo de importación">
           <button
@@ -678,6 +729,36 @@ export function UploadPage({ initialMangaId = "", onNavigate }) {
         </p>
         {importMode === "existing" && selectedManga ? (
           <p className="form-help">Se agregará a: {selectedManga.title}.</p>
+        ) : null}
+
+        {pendingQueueBytes > 0 ? (
+          <section className={`storage-preflight ${storagePreflight.exceedsQuota ? "critical" : storagePreflight.requiresConfirmation ? "near" : "ok"}`}>
+            <div>
+              <strong>Preflight de espacio</strong>
+              <p>
+                Cola: {formatBytes(pendingQueueBytes)} · libre estimado después de subir:{" "}
+                {formatBytes(Math.max(0, storagePreflight.estimatedRemainingBytes))}
+              </p>
+              <p>
+                Los comprimidos pueden expandirse al importar; el servidor vuelve a validar y limpia
+                archivos parciales si la cuota se supera.
+              </p>
+            </div>
+            {storagePreflight.exceedsQuota ? (
+              <p className="storage-preflight-message">
+                Esta cola supera la cuota disponible. Quitá entradas o ampliá la cuota.
+              </p>
+            ) : storagePreflight.requiresConfirmation ? (
+              <label className="storage-confirmation">
+                <input
+                  checked={storageConfirmed}
+                  onChange={(event) => setStorageConfirmed(event.target.checked)}
+                  type="checkbox"
+                />
+                Confirmo subir aunque el espacio quedará bajo.
+              </label>
+            ) : null}
+          </section>
         ) : null}
 
         {queueItems.length > 0 ? (
