@@ -1,7 +1,7 @@
 import { readdir, stat, statfs } from "node:fs/promises";
 import path from "node:path";
 import { config } from "./config.js";
-import { listLibrary } from "./db.js";
+import { checkpointDatabaseStorage, listLibrary } from "./db.js";
 import { libraryDir, storageDir, tempDir, thumbnailsDir } from "./storage.js";
 
 const warningThreshold = 0.8;
@@ -77,6 +77,7 @@ async function safeDiskFreeBytes() {
 }
 
 async function databaseBytes() {
+  checkpointDatabaseStorage();
   const dbPath = path.join(config.dataDir, "manga-reader.sqlite");
   const files = [dbPath, `${dbPath}-wal`, `${dbPath}-shm`];
   const sizes = await Promise.all(files.map((file) => fileSize(file)));

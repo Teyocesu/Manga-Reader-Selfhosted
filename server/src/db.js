@@ -15,6 +15,10 @@ export const db = new DatabaseSync(dbPath);
 db.exec("PRAGMA foreign_keys = ON;");
 db.exec("PRAGMA journal_mode = WAL;");
 
+export function checkpointDatabaseStorage() {
+  db.exec("PRAGMA wal_checkpoint(TRUNCATE);");
+}
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS mangas (
     id TEXT PRIMARY KEY,
