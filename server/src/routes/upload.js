@@ -30,6 +30,7 @@ import {
   removeQuietly,
   tempDir
 } from "../storage.js";
+import { assertStorageQuota, directorySize } from "../storageQuota.js";
 import { createMangaThumbnail, selectRepresentativePage } from "../thumbnails.js";
 
 await ensureStorageDirs();
@@ -409,6 +410,15 @@ function summarizeImport({ manga, importedChapters, skippedChapters }) {
   };
 }
 
+async function extractedChapterBytes(extractedChapters) {
+  const sizes = await Promise.all(
+    extractedChapters.flatMap((chapter) =>
+      chapter.pages.map((page) => directorySize(page.tempPath))
+    )
+  );
+  return sizes.reduce((total, size) => total + size, 0);
+}
+
 uploadRouter.post(
   "/upload",
   upload.fields([
@@ -503,6 +513,9 @@ uploadRouter.post(
       });
     }
 
+    const incomingBytes = await extractedChapterBytes(extractedChapters);
+    await assertStorageQuota({ incomingBytes, includeTemp: false });
+
     if (!manga.thumbnailPath) {
       const representativePage = selectRepresentativePage(extractedChapters);
       if (representativePage) {
@@ -572,6 +585,8 @@ uploadRouter.post(
       createdChapterIds.push(chapterId);
       importedChapters.push(importedChapter);
     }
+
+    await assertStorageQuota({ includeTemp: false });
 
     if (importedChapters.length === 1 && skippedChapters.length === 0) {
       res.status(201).json(importedChapters[0]);
