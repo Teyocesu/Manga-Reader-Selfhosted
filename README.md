@@ -27,10 +27,12 @@ Valores habituales:
 ```text
 MAX_UPLOAD_MB=1024
 MAX_IMAGES_PER_CHAPTER=1000
+STORAGE_QUOTA_GB=25
 APP_PASSWORD=tu_password_nuevo
 ```
 
 El limite de upload no es ilimitado: si un archivo supera `MAX_UPLOAD_MB`, la API responde con un error claro.
+La cuota local de la app usa `STORAGE_QUOTA_GB` y por defecto es 25 GB. Si necesitás precisión exacta, `STORAGE_QUOTA_BYTES` tiene prioridad sobre `STORAGE_QUOTA_GB`. La cuota cuenta biblioteca, miniaturas, temporales y base de datos; además la API compara contra el espacio libre real del disco cuando el sistema lo informa.
 
 Para cambiar la contraseña, editá `APP_PASSWORD` en `.env`, guardá el archivo y reiniciá el server (`npm run dev`, `npm run dev:server` o `npm run start`, según cómo lo estés corriendo). No incluyas la contraseña real en commits, capturas ni issues.
 
@@ -127,6 +129,7 @@ Si mezcla imagenes y archives internos, la app rechaza el upload para evitar amb
 - `PUT /api/chapters/:chapterId`
 - `DELETE /api/chapters/:chapterId`
 - `POST /api/upload`
+- `GET /api/storage`
 - `GET /api/pages/:pageId/image`
 - `GET /api/progress/:chapterId`
 - `PUT /api/progress/:chapterId`
