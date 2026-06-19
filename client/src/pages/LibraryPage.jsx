@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { getLibrary, imageUrl } from "../api.js";
+import { getLibrary, getStorageStatus, imageUrl } from "../api.js";
 import { MangaThumbnail } from "../components/MangaThumbnail.jsx";
+import { StorageOverview } from "../components/StorageOverview.jsx";
 import { readPreference, writePreference } from "../utils/preferences.js";
 
 const LIBRARY_SORT_KEY = "manga-reader.library-sort";
@@ -128,7 +129,8 @@ export function LibraryPage({ onNavigate }) {
   const [state, setState] = useState({
     loading: true,
     error: "",
-    mangas: []
+    mangas: [],
+    storage: null
   });
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState(loadStoredSort);
@@ -137,10 +139,10 @@ export function LibraryPage({ onNavigate }) {
   useEffect(() => {
     let alive = true;
 
-    getLibrary()
-      .then((data) => {
+    Promise.all([getLibrary(), getStorageStatus()])
+      .then(([data, storage]) => {
         if (alive) {
-          setState({ loading: false, error: "", mangas: data.mangas });
+          setState({ loading: false, error: "", mangas: data.mangas, storage });
         }
       })
       .catch(() => {
@@ -148,7 +150,8 @@ export function LibraryPage({ onNavigate }) {
           setState({
             loading: false,
             error: "No se pudo cargar la biblioteca. Revisá que el servidor esté corriendo.",
-            mangas: []
+            mangas: [],
+            storage: null
           });
         }
       });
@@ -232,6 +235,8 @@ export function LibraryPage({ onNavigate }) {
           Subir capítulo
         </button>
       </div>
+
+      <StorageOverview storage={state.storage} />
 
       {state.mangas.length === 0 ? (
         <div className="empty-state">

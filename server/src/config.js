@@ -22,12 +22,23 @@ function positiveIntegerFromEnv(name, fallback) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+function storageQuotaFromEnv() {
+  const bytes = positiveIntegerFromEnv("STORAGE_QUOTA_BYTES", 0);
+  if (bytes > 0) {
+    return bytes;
+  }
+
+  const gb = positiveIntegerFromEnv("STORAGE_QUOTA_GB", 25);
+  return gb * 1024 * 1024 * 1024;
+}
+
 export const config = {
   appPassword: process.env.APP_PASSWORD || "",
   dataDir: pathFromEnv("DATA_DIR", "./data"),
   maxUploadMb: positiveIntegerFromEnv("MAX_UPLOAD_MB", 1024),
   maxImagesPerChapter: positiveIntegerFromEnv("MAX_IMAGES_PER_CHAPTER", 1000),
-  storageDir: pathFromEnv("STORAGE_DIR", "./storage")
+  storageDir: pathFromEnv("STORAGE_DIR", "./storage"),
+  storageQuotaBytes: storageQuotaFromEnv()
 };
 
 export const maxUploadBytes = config.maxUploadMb * 1024 * 1024;

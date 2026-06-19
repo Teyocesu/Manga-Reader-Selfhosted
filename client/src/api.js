@@ -59,6 +59,10 @@ export function getAppConfig() {
   return request("/config");
 }
 
+export function getStorageStatus() {
+  return request("/storage");
+}
+
 export function getManga(mangaId) {
   return request(`/mangas/${mangaId}`);
 }
