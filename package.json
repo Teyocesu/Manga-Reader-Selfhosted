@@ -2,6 +2,21 @@
   "name": "manga-reader-selfhosted",
   "version": "0.1.0",
   "private": true,
+  "description": "A private self-hosted manga/manhwa reader for personal archives.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Teyocesu/Manga-Reader-Selfhosted.git"
+  },
+  "keywords": [
+    "manga",
+    "manhwa",
+    "reader",
+    "self-hosted",
+    "sqlite",
+    "express",
+    "react"
+  ],
   "type": "module",
   "workspaces": [
     "client",

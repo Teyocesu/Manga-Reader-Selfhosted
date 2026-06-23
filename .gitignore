@@ -17,10 +17,20 @@ build/
 # Local SQLite data
 data/*
 !data/.gitkeep
+*.sqlite
+*.sqlite-*
 
 # Uploaded/extracted files
 storage/*
 !storage/.gitkeep
+
+# Local backups and temp files
+*.bak
+*.tmp
+*.temp
+
+# PM2 / process manager local state
+.pm2/
 
 # macOS
 .DS_Store

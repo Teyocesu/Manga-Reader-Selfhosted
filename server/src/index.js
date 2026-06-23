@@ -28,7 +28,8 @@ if (process.env.NODE_ENV === "production" && !config.appPassword) {
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
-      "img-src": ["'self'", "data:"]
+      "img-src": ["'self'", "data:"],
+      "upgrade-insecure-requests": null
     }
   },
   crossOriginResourcePolicy: { policy: "same-site" },
