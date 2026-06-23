@@ -101,17 +101,16 @@ Use this when your computer and phone are connected to the same trusted Wi-Fi ne
 
 2. Find your computer's local network IP address.
 
-   On macOS, one common command is:
+   Common commands:
 
-   ```bash
-   ipconfig getifaddr en0
-   ```
+   | OS | Command |
+   |---|---|
+   | macOS | `ipconfig getifaddr en0` |
+   | macOS fallback | `ipconfig getifaddr en1` |
+   | Linux | `hostname -I` |
+   | Windows PowerShell | `ipconfig` |
 
-   If that prints nothing, try:
-
-   ```bash
-   ipconfig getifaddr en1
-   ```
+   Use the private LAN address from your active Wi-Fi or Ethernet adapter. It usually starts with `192.168.x.x`, `10.x.x.x`, or `172.16.x.x`.
 
 3. On your phone, open the frontend URL:
 
