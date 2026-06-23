@@ -85,6 +85,72 @@ Default local services:
 
 The backend and Vite dev server listen on `0.0.0.0`, so another device on the same private network can open the app using the host machine address.
 
+## Open From a Phone
+
+You can open the reader from an iPhone or another phone as long as the phone can reach the machine running the app.
+
+### Option 1: Same Wi-Fi network
+
+Use this when your computer and phone are connected to the same trusted Wi-Fi network.
+
+1. Start the app on your computer:
+
+   ```bash
+   npm run dev
+   ```
+
+2. Find your computer's local network IP address.
+
+   On macOS, one common command is:
+
+   ```bash
+   ipconfig getifaddr en0
+   ```
+
+   If that prints nothing, try:
+
+   ```bash
+   ipconfig getifaddr en1
+   ```
+
+3. On your phone, open the frontend URL:
+
+   ```text
+   http://<computer-local-ip>:5173
+   ```
+
+   Example format:
+
+   ```text
+   http://192.168.1.20:5173
+   ```
+
+4. Enter the app password if `APP_PASSWORD` is configured.
+
+In development mode, the phone opens the Vite frontend on port `5173`, and the frontend talks to the backend on port `3001`.
+
+### Option 2: Tailscale private network
+
+Use this when the app runs on a private VM or when your phone is not on the same Wi-Fi network.
+
+1. Install and log in to Tailscale on the server or computer running the app.
+2. Install and log in to Tailscale on the phone.
+3. Start the app on the server:
+
+   ```bash
+   npm run start
+   ```
+
+4. Open the production URL from the phone:
+
+   ```text
+   http://<tailscale-device-name-or-private-ip>:3001
+   ```
+
+For a private VM, production mode is usually easier because Express serves both the app and the API from port `3001`.
+
+Do not commit or publish your real Tailscale IP, device names, auth keys, passwords, or private hostnames.
+
 ## Configuration
 
 Configuration is loaded from `.env` at the project root.
